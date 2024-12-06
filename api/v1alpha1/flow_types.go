@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -28,14 +30,40 @@ type FlowSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Flow. Edit flow_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Optional deadline in seconds for running the flow.
+	// Flows which miss the deadline will be counted as failed.
+	// Defaults to 900 (15 minutes) for PRs and 3600 (1 hr) for pushes
+	// +optional
+	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+	// List of triggers for running the flow.
+	// See the concrete Trigger types in this package
+	Triggers []RawMessage `json:"triggers"`
+	// List of steps to run for each trigger
+	// See the concrete Step types in this package
+	Steps []RawMessage `json:"steps"`
+}
+
+// +kubebuilder:validation:Schemaless
+// +kubebuilder:pruning:PreserveUnknownFields
+// +kubebuilder:validation:Type=object
+type RawMessage struct {
+	json.RawMessage `json:",inline"`
 }
 
 // FlowStatus defines the observed state of Flow.
 type FlowStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
+
+	// Represents the observations of a Flow's current state.
+	// Flow.status.conditions.type are: "Ready"
+	// Flow.status.conditions.status are one of True, False
+	// Flow.status.conditions.reason the value should be a CamelCase string and producers of specific
+	// condition types may define expected values and meanings for this field, and whether the values
+	// are considered a guaranteed API.
+	// Flow.status.conditions.Message is a human readable message indicating details about the transition.
+	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true

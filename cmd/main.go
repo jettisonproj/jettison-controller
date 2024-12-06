@@ -25,6 +25,8 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -35,7 +37,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	workflowsv1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	"github.com/jettisonproj/jettison-controller/internal/controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -48,7 +50,10 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(workflowsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(workflowsv1.AddToScheme(scheme))
+	utilruntime.Must(eventsv1.AddToScheme(scheme))
+
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

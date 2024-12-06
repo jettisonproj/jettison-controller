@@ -18,13 +18,23 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
+	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	workflowsv1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	"github.com/jettisonproj/jettison-controller/internal/controller/sensor"
+)
+
+const (
+	conditionType = "Ready"
 )
 
 // FlowReconciler reconciles a Flow object
@@ -47,9 +57,96 @@ type FlowReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.1/pkg/reconcile
 func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
-
 	// TODO(user): your logic here
+	reconcilerlog := log.FromContext(ctx)
+	flow := &v1alpha1.Flow{}
+	if err := r.Get(ctx, req.NamespacedName, flow); err != nil {
+		if apierrors.IsNotFound(err) {
+			// If the custom resource is not found then it usually means that it was deleted or not created
+			// In this way, we will stop the reconciliation
+			reconcilerlog.Info("Flow resource not found. Ignoring deleted object")
+			return ctrl.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		reconcilerlog.Error(err, "unable to fetch Flow")
+		return ctrl.Result{}, err
+	}
+
+	existingSensor := &eventsv1.Sensor{}
+	err := r.Get(ctx, req.NamespacedName, existingSensor)
+	if err != nil && !apierrors.IsNotFound(err) {
+		reconcilerlog.Error(err, "failed to check for existing Sensor")
+		// Let's return the error for the reconciliation be re-trigged again
+		return ctrl.Result{}, err
+	}
+
+	existingSensorNotFound := err != nil
+	sensor, err := sensor.BuildSensor(flow)
+	if err != nil {
+		reconcilerlog.Error(err, "failed to build Sensor", "flow", flow)
+		condition := metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  "SensorGenFailed",
+			Message: fmt.Sprintf("Failed to build Sensor: %s", err),
+		}
+		if err := r.setCondition(ctx, req, flow, condition); err != nil {
+			reconcilerlog.Error(err, "failed to update Flow status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Set the ownerRef for the Deployment
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
+	if err := ctrl.SetControllerReference(flow, sensor, r.Scheme); err != nil {
+		reconcilerlog.Error(err, "unable to set Sensor owner reference")
+		return ctrl.Result{}, err
+	}
+
+	if existingSensorNotFound {
+		if err := r.Create(ctx, sensor); err != nil {
+			reconcilerlog.Error(err, "failed to create Sensor for Flow")
+			return ctrl.Result{}, err
+		}
+		reconcilerlog.Info("created new Sensor for Flow")
+		condition := metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "SensorCreated",
+			Message: "Successfully created sensor resource",
+		}
+		if err := r.setCondition(ctx, req, flow, condition); err != nil {
+			reconcilerlog.Error(err, "failed to update Flow status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// For discussion on the comparison here, see:
+	// https://github.com/kubernetes-sigs/kubebuilder/issues/592
+	if !equality.Semantic.DeepDerivative(sensor.Spec, existingSensor.Spec) {
+		// some field set by the operator has changed
+		existingSensor.Spec = sensor.Spec
+		if err := r.Update(ctx, existingSensor); err != nil {
+			reconcilerlog.Error(err, "failed to update Sensor for Flow")
+			return ctrl.Result{}, err
+		}
+		reconcilerlog.Info("updated Sensor for Flow")
+		condition := metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionTrue,
+			Reason:  "SensorUpdated",
+			Message: "Successfully updated sensor resource",
+		}
+		if err := r.setCondition(ctx, req, flow, condition); err != nil {
+			reconcilerlog.Error(err, "failed to update Flow status")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	reconcilerlog.Info("reconciler called for Flow, but no drift was detected")
 
 	return ctrl.Result{}, nil
 }
@@ -57,7 +154,8 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 // SetupWithManager sets up the controller with the Manager.
 func (r *FlowReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&workflowsv1alpha1.Flow{}).
+		For(&v1alpha1.Flow{}).
+		Owns(&eventsv1.Sensor{}).
 		Named("flow").
 		Complete(r)
 }

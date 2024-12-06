@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	workflowsv1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 )
 
 var _ = Describe("Flow Controller", func() {
@@ -40,13 +40,13 @@ var _ = Describe("Flow Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		flow := &workflowsv1alpha1.Flow{}
+		flow := &v1alpha1.Flow{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind Flow")
 			err := k8sClient.Get(ctx, typeNamespacedName, flow)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &workflowsv1alpha1.Flow{
+				resource := &v1alpha1.Flow{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,7 +59,7 @@ var _ = Describe("Flow Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &workflowsv1alpha1.Flow{}
+			resource := &v1alpha1.Flow{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
