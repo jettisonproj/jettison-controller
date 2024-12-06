@@ -1,0 +1,9 @@
+apiVersion: workflows.jettisonproj.io/v1alpha1
+kind: Flow
+metadata:
+  labels:
+    app.kubernetes.io/name: jettison-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: flow-sample
+spec:
+  # TODO(user): Add fields here

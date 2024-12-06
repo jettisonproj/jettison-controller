@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- workflows_v1alpha1_flow.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

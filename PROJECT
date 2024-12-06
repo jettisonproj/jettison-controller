@@ -7,4 +7,14 @@ layout:
 - go.kubebuilder.io/v4
 projectName: jettison-controller
 repo: github.com/jettisonproj/jettison-controller
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: jettisonproj.io
+  group: workflows
+  kind: Flow
+  path: github.com/jettisonproj/jettison-controller/api/v1alpha1
+  version: v1alpha1
 version: "3"

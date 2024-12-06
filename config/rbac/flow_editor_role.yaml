@@ -1,0 +1,27 @@
+# permissions for end users to edit flows.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: jettison-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: flow-editor-role
+rules:
+- apiGroups:
+  - workflows.jettisonproj.io
+  resources:
+  - flows
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - workflows.jettisonproj.io
+  resources:
+  - flows/status
+  verbs:
+  - get
