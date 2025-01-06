@@ -45,7 +45,7 @@ func getSensorTriggers(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrig
 }
 
 func getWorkflowTemplate(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]byte, error) {
-	flowWorkflowTemplateDAGTasks, err := getWorkflowTemplateDAGTasks(flowTriggers, flowSteps)
+	flowWorkflowTemplateDAGTasks, triggerType, err := getWorkflowTemplateDAGTasks(flowTriggers, flowSteps)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func getWorkflowTemplate(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTr
 			ServiceAccountName:    "deploy-step-executor",
 			ActiveDeadlineSeconds: flow.Spec.ActiveDeadlineSeconds,
 			Hooks: workflowsv1.LifecycleHooks{
-				workflowsv1.ExitLifecycleEvent: getFinalDAGTask(),
+				workflowsv1.ExitLifecycleEvent: getFinalDAGTask(triggerType),
 			},
 		},
 	}

@@ -9,11 +9,24 @@ import (
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
 )
 
-func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.DAGTask, error) {
+const (
+	commitTriggerType = "commit"
+	prTriggerType     = "PR"
+)
+
+func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.DAGTask, string, error) {
+	var triggerType string
 	var initialDAGTasks []workflowsv1.DAGTask
 	for i := range flowTriggers {
 		switch trigger := flowTriggers[i].(type) {
 		case *v1alpha1.GitHubPullRequestTrigger:
+
+			if triggerType == "" {
+				triggerType = prTriggerType
+			} else if triggerType != prTriggerType {
+				return nil, "", fmt.Errorf("trigger types cannot be both %s and %s", prTriggerType, commitTriggerType)
+			}
+
 			initialDAGTask := workflowsv1.DAGTask{
 				Name: "github-check-start",
 				Arguments: workflowsv1.Arguments{
@@ -24,7 +37,7 @@ func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.
 						},
 						{
 							Name:  "event-type",
-							Value: workflowsv1.AnyStringPtr("PR"),
+							Value: workflowsv1.AnyStringPtr(triggerType),
 						},
 						{
 							Name:  "revision",
@@ -41,6 +54,13 @@ func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.
 			initialDAGTasks = append(initialDAGTasks, initialDAGTask)
 
 		case *v1alpha1.GitHubPushTrigger:
+
+			if triggerType == "" {
+				triggerType = commitTriggerType
+			} else if triggerType != commitTriggerType {
+				return nil, "", fmt.Errorf("trigger types cannot be both %s and %s", prTriggerType, commitTriggerType)
+			}
+
 			initialDAGTask := workflowsv1.DAGTask{
 				Name: "github-check-start",
 				Arguments: workflowsv1.Arguments{
@@ -51,7 +71,7 @@ func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.
 						},
 						{
 							Name:  "event-type",
-							Value: workflowsv1.AnyStringPtr("commit"),
+							Value: workflowsv1.AnyStringPtr(triggerType),
 						},
 						{
 							Name:  "revision",
@@ -68,16 +88,16 @@ func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.
 			initialDAGTasks = append(initialDAGTasks, initialDAGTask)
 
 		default:
-			return nil, fmt.Errorf("unknown trigger type: %T", trigger)
+			return nil, "", fmt.Errorf("unknown trigger type: %T", trigger)
 		}
 	}
-	return initialDAGTasks, nil
+	return initialDAGTasks, triggerType, nil
 }
 
-func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]workflowsv1.DAGTask, error) {
-	dagTasks, err := getInitialDAGTasks(flowTriggers)
+func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]workflowsv1.DAGTask, string, error) {
+	dagTasks, triggerType, err := getInitialDAGTasks(flowTriggers)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get initial dag tasks: %s", err)
+		return nil, "", fmt.Errorf("failed to get initial dag tasks: %s", err)
 	}
 
 	manualApprovalSteps := map[string]bool{}
@@ -231,13 +251,13 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 			}
 			dagTasks = append(dagTasks, dagTask)
 		default:
-			return nil, fmt.Errorf("unknown Flow step type: %T", step)
+			return nil, "", fmt.Errorf("unknown Flow step type: %T", step)
 		}
 	}
-	return dagTasks, nil
+	return dagTasks, triggerType, nil
 }
 
-func getFinalDAGTask() workflowsv1.LifecycleHook {
+func getFinalDAGTask(triggerType string) workflowsv1.LifecycleHook {
 	return workflowsv1.LifecycleHook{
 		Arguments: workflowsv1.Arguments{
 			Parameters: []workflowsv1.Parameter{
@@ -247,7 +267,7 @@ func getFinalDAGTask() workflowsv1.LifecycleHook {
 				},
 				{
 					Name:  "event-type",
-					Value: workflowsv1.AnyStringPtr("PR"),
+					Value: workflowsv1.AnyStringPtr(triggerType),
 				},
 				{
 					Name:  "check-run-id",
