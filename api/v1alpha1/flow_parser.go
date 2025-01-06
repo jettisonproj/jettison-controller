@@ -9,7 +9,7 @@ import (
 )
 
 // Parse the triggers to concrete Trigger types from this package
-func (f Flow) ParseTriggers() ([]v1alpha1base.BaseTrigger, error) {
+func (f Flow) parseTriggers() ([]v1alpha1base.BaseTrigger, error) {
 	triggers := make([]v1alpha1base.BaseTrigger, len(f.Spec.Triggers))
 	for i := range f.Spec.Triggers {
 		trigger, err := parseTrigger(f.Spec.Triggers[i])
@@ -46,7 +46,7 @@ func parseTrigger(rawTrigger RawMessage) (v1alpha1base.BaseTrigger, error) {
 }
 
 // Parse the steps to concrete Step types from this package
-func (f Flow) ParseSteps() ([]v1alpha1base.BaseStep, error) {
+func (f Flow) parseSteps() ([]v1alpha1base.BaseStep, error) {
 	steps := make([]v1alpha1base.BaseStep, len(f.Spec.Steps))
 	for i := range f.Spec.Steps {
 		step, err := parseStep(f.Spec.Steps[i])

@@ -11,7 +11,7 @@ import (
 
 // Build a Sensor for the specified Flow
 func BuildSensor(flow *v1alpha1.Flow) (*eventsv1.Sensor, error) {
-	flowTriggers, flowSteps, err := preProcessFlow(flow)
+	flowTriggers, flowSteps, err := flow.ProcessFlow()
 	if err != nil {
 		return nil, fmt.Errorf("error preprocessing Flow for Sensor: %s", err)
 	}

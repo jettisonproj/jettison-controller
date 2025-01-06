@@ -23,7 +23,7 @@ var (
 )
 
 // Apply default to the Flow, and the parsed triggers and steps
-func (f *Flow) ApplyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alpha1base.BaseStep) error {
+func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alpha1base.BaseStep) error {
 	defaultActiveDeadlineSeconds := defaultActiveDeadlineSecondsPR
 	for i := range triggers {
 		switch trigger := triggers[i].(type) {

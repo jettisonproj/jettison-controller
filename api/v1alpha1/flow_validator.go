@@ -6,7 +6,7 @@ import (
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
 )
 
-func (f Flow) Validate(triggers []v1alpha1base.BaseTrigger, steps []v1alpha1base.BaseStep) error {
+func (f Flow) validate(triggers []v1alpha1base.BaseTrigger, steps []v1alpha1base.BaseStep) error {
 	if len(triggers) == 0 {
 		return fmt.Errorf("triggers cannot be empty")
 	}
