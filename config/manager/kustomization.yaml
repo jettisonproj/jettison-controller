@@ -1,2 +1,8 @@
 resources:
 - manager.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: controller
+  newName: osoriano/jettison-controller
+  newTag: 01439b5d1588bbf98f6933870b9cdd6ea743d633
