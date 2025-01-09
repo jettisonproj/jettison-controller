@@ -1,0 +1,18 @@
+#
+# PR flow for osoriano/rollouts-demo
+#
+apiVersion: workflows.jettisonproj.io/v1alpha1
+kind: Flow
+metadata:
+  name: github-pr
+spec:
+  activeDeadlineSeconds: 800
+  triggers:
+  - triggerSource: github-pull-request
+    repoUrl: "https://github.com/osoriano/rollouts-demo.git"
+    baseRef: "master"
+    pullRequestEvents: ["opened"]
+  steps:
+  - stepSource: docker-build-test
+    dockerfilePath: subdir/Dockerfile
+    dockerContextDir: "subdir"
