@@ -25,7 +25,7 @@ func (c *CommonClient) Create(createUrl string, filePath string) error {
 		Post().
 		AbsPath(createUrl).
 		Body(resourceBytes).
-		DoRaw(context.TODO())
+		DoRaw(context.Background())
 
 	if err != nil {
 		return fmt.Errorf(
@@ -43,7 +43,7 @@ func (c *CommonClient) Delete(deleteUrl string) error {
 	resp, err := c.clientset.RESTClient().
 		Delete().
 		AbsPath(deleteUrl).
-		DoRaw(context.TODO())
+		DoRaw(context.Background())
 
 	if err != nil {
 		return fmt.Errorf(
@@ -59,7 +59,7 @@ func (c *CommonClient) Delete(deleteUrl string) error {
 // Ideally, if generics were supported on methods, we could return the
 // appropriate type here
 func (c *CommonClient) Get(getUrl string) ([]byte, error) {
-	return c.clientset.RESTClient().Get().AbsPath(getUrl).DoRaw(context.TODO())
+	return c.clientset.RESTClient().Get().AbsPath(getUrl).DoRaw(context.Background())
 }
 
 // Since generics are not supported on methods, use a function for the Get call
