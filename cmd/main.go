@@ -39,6 +39,7 @@ import (
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	"github.com/jettisonproj/jettison-controller/internal/controller"
+	"github.com/jettisonproj/jettison-controller/internal/webserver"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -61,12 +62,14 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var serverAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&serverAddr, "server-bind-address", ":2846", "The address the server endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -162,6 +165,16 @@ func main() {
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
+		os.Exit(1)
+	}
+
+	if err = (&webserver.FlowWebServer{
+		BindAddress: serverAddr,
+		Client:      mgr.GetClient(),
+		Cache:       mgr.GetCache(),
+		Scheme:      mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webserver", "webserver", "Flow")
 		os.Exit(1)
 	}
 
