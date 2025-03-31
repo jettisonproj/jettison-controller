@@ -62,7 +62,7 @@ func TestFlowPR(t *testing.T) {
 
 			require.Len(t, flowTriggers, 1)
 			flowTrigger := flowTriggers[0]
-			require.Equal(t, "github-pull-request", flowTrigger.GetTriggerSource())
+			require.Equal(t, "GitHubPullRequest", flowTrigger.GetTriggerSource())
 
 			prTrigger, ok := flowTrigger.(*v1alpha1.GitHubPullRequestTrigger)
 			require.Truef(t, ok, "failed to parse type as *GitHubPullRequestTrigger: %T", flowTrigger)
@@ -72,8 +72,8 @@ func TestFlowPR(t *testing.T) {
 
 			require.Len(t, flowSteps, 1)
 			flowStep := flowSteps[0]
-			require.Equal(t, "docker-build-test", flowStep.GetStepSource())
-			require.Equal(t, "docker-build-test", flowStep.GetStepName())
+			require.Equal(t, "DockerBuildTest", flowStep.GetStepSource())
+			require.Equal(t, "DockerBuildTest", flowStep.GetStepName())
 
 			buildStep, ok := flowStep.(*v1alpha1.DockerBuildTestStep)
 			require.Truef(t, ok, "failed to parse step as *DockerBuildTestStep: %T", flowStep)
@@ -128,7 +128,7 @@ func TestFlowPush(t *testing.T) {
 			require.Len(t, flowTriggers, 1)
 			flowTrigger := flowTriggers[0]
 			require.Equal(t, "github-push", flowTrigger.GetTriggerName())
-			require.Equal(t, "github-push", flowTrigger.GetTriggerSource())
+			require.Equal(t, "GitHubPush", flowTrigger.GetTriggerSource())
 
 			pushTrigger, ok := flowTrigger.(*v1alpha1.GitHubPushTrigger)
 			require.Truef(t, ok, "failed to parse type as *GitHubPushTrigger: %T", flowTrigger)
@@ -139,7 +139,7 @@ func TestFlowPush(t *testing.T) {
 
 			// Step 0 - Build
 			require.Equal(t, "docker-build-test-publish", flowSteps[0].GetStepName())
-			require.Equal(t, "docker-build-test-publish", flowSteps[0].GetStepSource())
+			require.Equal(t, "DockerBuildTestPublish", flowSteps[0].GetStepSource())
 			require.Empty(t, flowSteps[0].GetDependsOn())
 
 			buildStep, ok := flowSteps[0].(*v1alpha1.DockerBuildTestPublishStep)
@@ -149,7 +149,7 @@ func TestFlowPush(t *testing.T) {
 
 			// Step 1 - Dev
 			require.Equal(t, "deploy-to-dev", flowSteps[1].GetStepName())
-			require.Equal(t, "argo-cd", flowSteps[1].GetStepSource())
+			require.Equal(t, "ArgoCD", flowSteps[1].GetStepSource())
 			require.Equal(t, []string{"docker-build-test-publish"}, flowSteps[1].GetDependsOn())
 
 			devStep, ok := flowSteps[1].(*v1alpha1.ArgoCDStep)
@@ -160,7 +160,7 @@ func TestFlowPush(t *testing.T) {
 
 			// Step 2 - Staging
 			require.Equal(t, "deploy-to-staging", flowSteps[2].GetStepName())
-			require.Equal(t, "argo-cd", flowSteps[2].GetStepSource())
+			require.Equal(t, "ArgoCD", flowSteps[2].GetStepSource())
 			require.Equal(t, []string{"docker-build-test-publish"}, flowSteps[2].GetDependsOn())
 
 			stagingStep, ok := flowSteps[2].(*v1alpha1.ArgoCDStep)
@@ -171,7 +171,7 @@ func TestFlowPush(t *testing.T) {
 
 			// Step 3 - Approval
 			require.Equal(t, "approve-to-prod", flowSteps[3].GetStepName())
-			require.Equal(t, "manual-approval", flowSteps[3].GetStepSource())
+			require.Equal(t, "ManualApproval", flowSteps[3].GetStepSource())
 			require.Equal(t, []string{"deploy-to-staging"}, flowSteps[3].GetDependsOn())
 
 			_, ok = flowSteps[3].(*v1alpha1.ManualApprovalStep)
@@ -179,7 +179,7 @@ func TestFlowPush(t *testing.T) {
 
 			// Step 4 - Prod
 			require.Equal(t, "deploy-to-prod", flowSteps[4].GetStepName())
-			require.Equal(t, "argo-cd", flowSteps[4].GetStepSource())
+			require.Equal(t, "ArgoCD", flowSteps[4].GetStepSource())
 			require.Equal(t, []string{"approve-to-prod"}, flowSteps[4].GetDependsOn())
 
 			prodStep, ok := flowSteps[4].(*v1alpha1.ArgoCDStep)

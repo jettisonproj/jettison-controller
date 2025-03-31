@@ -27,7 +27,7 @@ func parseTrigger(rawTrigger RawMessage) (v1alpha1base.BaseTrigger, error) {
 		return nil, fmt.Errorf("failed to parse base trigger: %s", err)
 	}
 
-	switch normalizeSource(baseTrigger.TriggerSource) {
+	switch baseTrigger.TriggerSource {
 	case gitHubPullRequestTriggerSource:
 		gitHubPullRequestTrigger := GitHubPullRequestTrigger{}
 		if err := json.Unmarshal(rawTrigger.RawMessage, &gitHubPullRequestTrigger); err != nil {
@@ -64,7 +64,7 @@ func parseStep(rawStep RawMessage) (v1alpha1base.BaseStep, error) {
 		return nil, fmt.Errorf("failed to parse base step: %s", err)
 	}
 
-	switch normalizeSource(baseStep.StepSource) {
+	switch baseStep.StepSource {
 	case dockerBuildTestStepSource:
 		dockerBuildTestStep := DockerBuildTestStep{}
 		if err := json.Unmarshal(rawStep.RawMessage, &dockerBuildTestStep); err != nil {
@@ -98,12 +98,4 @@ func parseStep(rawStep RawMessage) (v1alpha1base.BaseStep, error) {
 	default:
 		return nil, fmt.Errorf("unknown stepSource: %s should be one of: %s", baseStep.StepSource, strings.Join(stepSources, ", "))
 	}
-}
-
-func normalizeSource(source string) string {
-	charsToRemove := " .-_"
-	for _, c := range charsToRemove {
-		source = strings.ReplaceAll(source, string(c), "")
-	}
-	return strings.ToLower(source)
 }

@@ -73,7 +73,7 @@ spec:
                         name: cicd-templates
                         template: deploy-step-github-check-start
                         clusterScope: true
-                    - name: docker-build-test
+                    - name: DockerBuildTest
                       arguments:
                         parameters:
                         - name: repo

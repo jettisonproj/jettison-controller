@@ -8,11 +8,11 @@ metadata:
 spec:
   # activeDeadlineSeconds: 900 # Defaults to 900 (15m) for pr build
   triggers:
-  - triggerSource: github-pull-request
+  - triggerSource: GitHubPullRequest
     repoUrl: "https://github.com/osoriano/rollouts-demo.git"
     # baseRef: "main" # Defaults to main
     # pullRequestEvents: [] # Defaults to opened, reopened, synchronize
   steps:
-  - stepSource: docker-build-test
+  - stepSource: DockerBuildTest
     # dockerfilePath: Dockerfile # Defaults to Dockerfile
     # dockerContextDir: "" # Defaults to "" (root)
