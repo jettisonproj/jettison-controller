@@ -9,34 +9,34 @@ spec:
   activeDeadlineSeconds: 7200
   triggers:
   - triggerName: github-push
-    triggerSource: github-push
+    triggerSource: GitHubPush
     repoUrl: "https://github.com/osoriano/rollouts-demo.git"
     baseRef: "master"
   steps:
   - stepName: docker-build-test-publish
-    stepSource: docker-build-test-publish
+    stepSource: DockerBuildTestPublish
     dockerfilePath: "subdir/Dockerfile"
     dockerContextDir: "subdir"
   - stepName: deploy-to-dev
-    stepSource: argo-cd
+    stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
     repoPath: "dev"
     baseRef: "master"
     dependsOn:
     - docker-build-test-publish
   - stepName: deploy-to-staging
-    stepSource: argo-cd
+    stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
     repoPath: "staging"
     baseRef: "master"
     dependsOn:
       - docker-build-test-publish
   - stepName: approve-to-prod
-    stepSource: manual-approval
+    stepSource: ManualApproval
     dependsOn:
       - deploy-to-staging
   - stepName: deploy-to-prod
-    stepSource: argo-cd
+    stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
     repoPath: "prod"
     baseRef: "master"

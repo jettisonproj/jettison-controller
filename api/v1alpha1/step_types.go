@@ -1,12 +1,12 @@
 package v1alpha1
 
 const (
-	// The available step sources. Should be lowercased
-	dockerBuildTestStepSource        = "dockerbuildtest"
-	dockerBuildTestPublishStepSource = "dockerbuildtestpublish"
-	argoCDStepSource                 = "argocd"
-	debugMessageStepSource           = "debugmessage"
-	manualApprovalStepSource         = "manualapproval"
+	// The available step sources. Should be pascalcased
+	dockerBuildTestStepSource        = "DockerBuildTest"
+	dockerBuildTestPublishStepSource = "DockerBuildTestPublish"
+	argoCDStepSource                 = "ArgoCD"
+	debugMessageStepSource           = "DebugMessage"
+	manualApprovalStepSource         = "ManualApproval"
 )
 
 var (

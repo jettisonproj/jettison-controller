@@ -8,11 +8,11 @@ metadata:
 spec:
   activeDeadlineSeconds: 800
   triggers:
-  - triggerSource: github-pull-request
+  - triggerSource: GitHubPullRequest
     repoUrl: "https://github.com/osoriano/rollouts-demo.git"
     baseRef: "master"
     pullRequestEvents: ["opened"]
   steps:
-  - stepSource: docker-build-test
+  - stepSource: DockerBuildTest
     dockerfilePath: subdir/Dockerfile
     dockerContextDir: "subdir"

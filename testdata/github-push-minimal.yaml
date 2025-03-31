@@ -9,34 +9,34 @@ spec:
   # activeDeadlineSeconds: 3600 # Defaults to 3600 (1h) for push build
   triggers:
   - triggerName: github-push
-    triggerSource: github-push
+    triggerSource: GitHubPush
     repoUrl: "https://github.com/osoriano/rollouts-demo.git"
     # baseRef: "main" # Defaults to main
   steps:
   - stepName: docker-build-test-publish
-    stepSource: docker-build-test-publish
+    stepSource: DockerBuildTestPublish
     # dockerfilePath: Dockerfile # Defaults to Dockerfile
     # dockerContextDir: "" # Defaults to "" (root)
   - stepName: deploy-to-dev
-    stepSource: argo-cd
+    stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
     repoPath: "dev"
     # baseRef: "main" # Defaults to main
     dependsOn:
     - docker-build-test-publish
   - stepName: deploy-to-staging
-    stepSource: argo-cd
+    stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
     repoPath: "staging"
     # baseRef: "main" # Defaults to main
     dependsOn:
       - docker-build-test-publish
   - stepName: approve-to-prod
-    stepSource: manual-approval
+    stepSource: ManualApproval
     dependsOn:
       - deploy-to-staging
   - stepName: deploy-to-prod
-    stepSource: argo-cd
+    stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
     repoPath: "prod"
     # baseRef: "main" # Defaults to main

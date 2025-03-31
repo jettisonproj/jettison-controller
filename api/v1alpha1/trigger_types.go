@@ -1,9 +1,9 @@
 package v1alpha1
 
 const (
-	// The available step sources. Should be lowercased
-	gitHubPullRequestTriggerSource = "githubpullrequest"
-	gitHubPushTriggerSource        = "githubpush"
+	// The available trigger sources. Should be pascalcased
+	gitHubPullRequestTriggerSource = "GitHubPullRequest"
+	gitHubPushTriggerSource        = "GitHubPush"
 )
 
 var (
