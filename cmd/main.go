@@ -25,6 +25,7 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -51,6 +52,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
+	utilruntime.Must(cdv1.AddToScheme(scheme))
 	utilruntime.Must(workflowsv1.AddToScheme(scheme))
 	utilruntime.Must(eventsv1.AddToScheme(scheme))
 
