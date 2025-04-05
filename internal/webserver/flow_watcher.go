@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -107,6 +108,27 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		return
 	}
 
+	// send applications
+	applications := &cdv1.ApplicationList{}
+	err = s.client.List(ctx, applications)
+	if err != nil {
+		connLog.Error(err, "failed to get applications for websocket")
+		err = conn.conn.WriteJSON(newWebError(
+			fmt.Sprintf("failed to get applications: %s", err),
+		))
+		if err != nil {
+			connLog.Error(err, "failed to send error message after failing to get applications")
+		}
+		s.unregisterConn(conn)
+		return
+	}
+	err = conn.conn.WriteJSON(applications)
+	if err != nil {
+		connLog.Error(err, "failed to send applications for websocket")
+		s.unregisterConn(conn)
+		return
+	}
+
 	// Register the connection to send updates
 	s.conns[conn] = true
 
@@ -170,6 +192,26 @@ func (s *FlowWatcher) setupWatcher() error {
 	if err != nil {
 		return fmt.Errorf("failed to get namespace informer for webserver: %s", err)
 	}
+
+	// send flow events
+	flowInformer, err := s.cache.GetInformer(ctx, &v1alpha1.Flow{})
+	if err != nil {
+		return fmt.Errorf("failed to get flow informer for webserver: %s", err)
+	}
+	_, err = flowInformer.AddEventHandler(s)
+	if err != nil {
+		return fmt.Errorf("failed to get flow informer for webserver: %s", err)
+	}
+
+	// send application events
+	applicationInformer, err := s.cache.GetInformer(ctx, &cdv1.Application{})
+	if err != nil {
+		return fmt.Errorf("failed to get application informer for webserver: %s", err)
+	}
+	_, err = applicationInformer.AddEventHandler(s)
+	if err != nil {
+		return fmt.Errorf("failed to get application informer for webserver: %s", err)
+	}
 	return nil
 }
 
@@ -182,6 +224,16 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 			s.backfillNamespaceSchema(resource)
 		}
 		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*resource}}
+	case *v1alpha1.Flow:
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillFlowSchema(resource)
+		}
+		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
+	case *cdv1.Application:
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillApplicationSchema(resource)
+		}
+		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
 	default:
 		err := fmt.Errorf("unknown add event type: %T", obj)
 		setupLog.Error(err, "unknown type in add event")
@@ -197,6 +249,16 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 			s.backfillNamespaceSchema(newResource)
 		}
 		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*newResource}}
+	case *v1alpha1.Flow:
+		if newResource.APIVersion == "" || newResource.Kind == "" {
+			s.backfillFlowSchema(newResource)
+		}
+		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*newResource}}
+	case *cdv1.Application:
+		if newResource.APIVersion == "" || newResource.Kind == "" {
+			s.backfillApplicationSchema(newResource)
+		}
+		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*newResource}}
 	default:
 		err := fmt.Errorf("unknown update event type: %T", newObj)
 		setupLog.Error(err, "unknown type in update event")
@@ -221,6 +283,34 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 			s.backfillNamespaceSchema(resource)
 		}
 		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*resource}}
+	case *v1alpha1.Flow:
+		// Add a distinguishing delete key
+		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
+		annotationVal := "delete"
+		if resource.Annotations == nil {
+			resource.Annotations = map[string]string{annotationKey: annotationVal}
+		} else {
+			resource.Annotations[annotationKey] = annotationVal
+		}
+
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillFlowSchema(resource)
+		}
+		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
+	case *cdv1.Application:
+		// Add a distinguishing delete key
+		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
+		annotationVal := "delete"
+		if resource.Annotations == nil {
+			resource.Annotations = map[string]string{annotationKey: annotationVal}
+		} else {
+			resource.Annotations[annotationKey] = annotationVal
+		}
+
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillApplicationSchema(resource)
+		}
+		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
 	default:
 		err := fmt.Errorf("unknown delete event type: %T", obj)
 		setupLog.Error(err, "unknown type in delete event")
@@ -239,4 +329,32 @@ func (s *FlowWatcher) backfillNamespaceSchema(namespace *corev1.Namespace) {
 	apiVersion, kind := gvk.ToAPIVersionAndKind()
 	namespace.APIVersion = apiVersion
 	namespace.Kind = kind
+}
+
+// Backfill TypeMeta data that has been dropped
+// See: https://github.com/kubernetes/client-go/issues/541
+func (s *FlowWatcher) backfillFlowSchema(flow *v1alpha1.Flow) {
+	setupLog.Info("backfilling flow api version kind")
+	gvk, err := apiutil.GVKForObject(flow, s.scheme)
+	if err != nil {
+		setupLog.Error(err, "unable to get flow schema info")
+		panic(err)
+	}
+	apiVersion, kind := gvk.ToAPIVersionAndKind()
+	flow.APIVersion = apiVersion
+	flow.Kind = kind
+}
+
+// Backfill TypeMeta data that has been dropped
+// See: https://github.com/kubernetes/client-go/issues/541
+func (s *FlowWatcher) backfillApplicationSchema(application *cdv1.Application) {
+	setupLog.Info("backfilling application api version kind")
+	gvk, err := apiutil.GVKForObject(application, s.scheme)
+	if err != nil {
+		setupLog.Error(err, "unable to get application schema info")
+		panic(err)
+	}
+	apiVersion, kind := gvk.ToAPIVersionAndKind()
+	application.APIVersion = apiVersion
+	application.Kind = kind
 }
