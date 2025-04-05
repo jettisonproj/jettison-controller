@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -129,6 +130,27 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		return
 	}
 
+	// send rollouts
+	rollouts := &rolloutsv1.RolloutList{}
+	err = s.client.List(ctx, rollouts)
+	if err != nil {
+		connLog.Error(err, "failed to get rollouts for websocket")
+		err = conn.conn.WriteJSON(newWebError(
+			fmt.Sprintf("failed to get rollouts: %s", err),
+		))
+		if err != nil {
+			connLog.Error(err, "failed to send error message after failing to get rollouts")
+		}
+		s.unregisterConn(conn)
+		return
+	}
+	err = conn.conn.WriteJSON(rollouts)
+	if err != nil {
+		connLog.Error(err, "failed to send rollouts for websocket")
+		s.unregisterConn(conn)
+		return
+	}
+
 	// Register the connection to send updates
 	s.conns[conn] = true
 
@@ -212,6 +234,16 @@ func (s *FlowWatcher) setupWatcher() error {
 	if err != nil {
 		return fmt.Errorf("failed to get application informer for webserver: %s", err)
 	}
+
+	// send rollout events
+	rolloutInformer, err := s.cache.GetInformer(ctx, &rolloutsv1.Rollout{})
+	if err != nil {
+		return fmt.Errorf("failed to get rollout informer for webserver: %s", err)
+	}
+	_, err = rolloutInformer.AddEventHandler(s)
+	if err != nil {
+		return fmt.Errorf("failed to get rollout informer for webserver: %s", err)
+	}
 	return nil
 }
 
@@ -234,6 +266,11 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 			s.backfillApplicationSchema(resource)
 		}
 		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
+	case *rolloutsv1.Rollout:
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillRolloutSchema(resource)
+		}
+		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
 	default:
 		err := fmt.Errorf("unknown add event type: %T", obj)
 		setupLog.Error(err, "unknown type in add event")
@@ -259,6 +296,11 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 			s.backfillApplicationSchema(newResource)
 		}
 		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*newResource}}
+	case *rolloutsv1.Rollout:
+		if newResource.APIVersion == "" || newResource.Kind == "" {
+			s.backfillRolloutSchema(newResource)
+		}
+		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*newResource}}
 	default:
 		err := fmt.Errorf("unknown update event type: %T", newObj)
 		setupLog.Error(err, "unknown type in update event")
@@ -311,6 +353,20 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 			s.backfillApplicationSchema(resource)
 		}
 		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
+	case *rolloutsv1.Rollout:
+		// Add a distinguishing delete key
+		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
+		annotationVal := "delete"
+		if resource.Annotations == nil {
+			resource.Annotations = map[string]string{annotationKey: annotationVal}
+		} else {
+			resource.Annotations[annotationKey] = annotationVal
+		}
+
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillRolloutSchema(resource)
+		}
+		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
 	default:
 		err := fmt.Errorf("unknown delete event type: %T", obj)
 		setupLog.Error(err, "unknown type in delete event")
@@ -357,4 +413,18 @@ func (s *FlowWatcher) backfillApplicationSchema(application *cdv1.Application) {
 	apiVersion, kind := gvk.ToAPIVersionAndKind()
 	application.APIVersion = apiVersion
 	application.Kind = kind
+}
+
+// Backfill TypeMeta data that has been dropped
+// See: https://github.com/kubernetes/client-go/issues/541
+func (s *FlowWatcher) backfillRolloutSchema(rollout *rolloutsv1.Rollout) {
+	setupLog.Info("backfilling rollout api version kind")
+	gvk, err := apiutil.GVKForObject(rollout, s.scheme)
+	if err != nil {
+		setupLog.Error(err, "unable to get rollout schema info")
+		panic(err)
+	}
+	apiVersion, kind := gvk.ToAPIVersionAndKind()
+	rollout.APIVersion = apiVersion
+	rollout.Kind = kind
 }

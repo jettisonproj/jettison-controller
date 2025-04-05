@@ -27,6 +27,7 @@ import (
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -55,6 +56,7 @@ func init() {
 	utilruntime.Must(cdv1.AddToScheme(scheme))
 	utilruntime.Must(workflowsv1.AddToScheme(scheme))
 	utilruntime.Must(eventsv1.AddToScheme(scheme))
+	utilruntime.Must(rolloutsv1.AddToScheme(scheme))
 
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme

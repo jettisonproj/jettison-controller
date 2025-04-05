@@ -44,6 +44,8 @@ github.com/argoproj/argo-cd/v3 v3.0.0 h1:VG3KgvjQqD7nQ/xdPnNrvSz5yLraJxVCMljdkLE
 github.com/argoproj/argo-cd/v3 v3.0.0/go.mod h1:JOi2rhOE1zxjhnke8Opotx0fAFkp7Iw2BkLPIXJPWC8=
 github.com/argoproj/argo-events v1.9.2 h1:BM9J26uAd2bEQsf5uXQCth9DNUcn5Gh+Xi9J+WYYZ6U=
 github.com/argoproj/argo-events v1.9.2/go.mod h1:wxff6Se5g/MJxzBkkSFOA6mkKwjqo1ppoQNrxPRxQlg=
+github.com/argoproj/argo-rollouts v1.8.2 h1:DBvkYvFTEH/zJ9MxJerqz/NMWEgZcHY5vxztyCBS5ak=
+github.com/argoproj/argo-rollouts v1.8.2/go.mod h1:xZIw+dg+B4IqMv5fNPenIBUiPb9xljL2st1xxkjhaC0=
 github.com/argoproj/argo-workflows/v3 v3.6.0 h1:EMg//kaW6kaf9fDeBR5H8zYjdUoepgI9CnRzmYCs+ds=
 github.com/argoproj/argo-workflows/v3 v3.6.0/go.mod h1:sOheETInaxdfkgQIko48KeYNhmYfnFmeT4lR7ir1u+Q=
 github.com/argoproj/gitops-engine v0.7.1-0.20250314164314-7258614f5041 h1:2QuxuGZ7ZLokBqmwr02MHhI2N3ffShms/IxSbvaFtVM=

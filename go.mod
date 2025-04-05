@@ -5,6 +5,7 @@ go 1.24.1
 require (
 	github.com/argoproj/argo-cd/v3 v3.0.0
 	github.com/argoproj/argo-events v1.9.2
+	github.com/argoproj/argo-rollouts v1.8.2
 	github.com/argoproj/argo-workflows/v3 v3.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.10.0
@@ -168,7 +169,7 @@ require (
 	k8s.io/cli-runtime v0.32.3 // indirect
 	k8s.io/component-base v0.32.3 // indirect
 	k8s.io/component-helpers v0.32.3 // indirect
-	k8s.io/controller-manager v0.0.0 // indirect
+	k8s.io/controller-manager v0.29.3 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-aggregator v0.32.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20250304201544-e5f78fe3ede9 // indirect
