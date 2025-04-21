@@ -6,6 +6,7 @@ import (
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
+	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -151,6 +152,27 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		return
 	}
 
+	// send workflows
+	workflows := &workflowsv1.WorkflowList{}
+	err = s.client.List(ctx, workflows)
+	if err != nil {
+		connLog.Error(err, "failed to get workflows for websocket")
+		err = conn.conn.WriteJSON(newWebError(
+			fmt.Sprintf("failed to get workflows: %s", err),
+		))
+		if err != nil {
+			connLog.Error(err, "failed to send error message after failing to get workflows")
+		}
+		s.unregisterConn(conn)
+		return
+	}
+	err = conn.conn.WriteJSON(workflows)
+	if err != nil {
+		connLog.Error(err, "failed to send workflows for websocket")
+		s.unregisterConn(conn)
+		return
+	}
+
 	// Register the connection to send updates
 	s.conns[conn] = true
 
@@ -212,7 +234,7 @@ func (s *FlowWatcher) setupWatcher() error {
 	}
 	_, err = namespaceInformer.AddEventHandler(s)
 	if err != nil {
-		return fmt.Errorf("failed to get namespace informer for webserver: %s", err)
+		return fmt.Errorf("failed to init namespace informer for webserver: %s", err)
 	}
 
 	// send flow events
@@ -222,7 +244,7 @@ func (s *FlowWatcher) setupWatcher() error {
 	}
 	_, err = flowInformer.AddEventHandler(s)
 	if err != nil {
-		return fmt.Errorf("failed to get flow informer for webserver: %s", err)
+		return fmt.Errorf("failed to init flow informer for webserver: %s", err)
 	}
 
 	// send application events
@@ -232,7 +254,7 @@ func (s *FlowWatcher) setupWatcher() error {
 	}
 	_, err = applicationInformer.AddEventHandler(s)
 	if err != nil {
-		return fmt.Errorf("failed to get application informer for webserver: %s", err)
+		return fmt.Errorf("failed to init application informer for webserver: %s", err)
 	}
 
 	// send rollout events
@@ -242,7 +264,17 @@ func (s *FlowWatcher) setupWatcher() error {
 	}
 	_, err = rolloutInformer.AddEventHandler(s)
 	if err != nil {
-		return fmt.Errorf("failed to get rollout informer for webserver: %s", err)
+		return fmt.Errorf("failed to init rollout informer for webserver: %s", err)
+	}
+
+	// send workflow events
+	workflowInformer, err := s.cache.GetInformer(ctx, &workflowsv1.Workflow{})
+	if err != nil {
+		return fmt.Errorf("failed to get workflow informer for webserver: %s", err)
+	}
+	_, err = workflowInformer.AddEventHandler(s)
+	if err != nil {
+		return fmt.Errorf("failed to init workflow informer for webserver: %s", err)
 	}
 	return nil
 }
@@ -271,6 +303,11 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 			s.backfillRolloutSchema(resource)
 		}
 		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
+	case *workflowsv1.Workflow:
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillWorkflowSchema(resource)
+		}
+		s.notify <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*resource}}
 	default:
 		err := fmt.Errorf("unknown add event type: %T", obj)
 		setupLog.Error(err, "unknown type in add event")
@@ -301,6 +338,11 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 			s.backfillRolloutSchema(newResource)
 		}
 		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*newResource}}
+	case *workflowsv1.Workflow:
+		if newResource.APIVersion == "" || newResource.Kind == "" {
+			s.backfillWorkflowSchema(newResource)
+		}
+		s.notify <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*newResource}}
 	default:
 		err := fmt.Errorf("unknown update event type: %T", newObj)
 		setupLog.Error(err, "unknown type in update event")
@@ -367,6 +409,20 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 			s.backfillRolloutSchema(resource)
 		}
 		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
+	case *workflowsv1.Workflow:
+		// Add a distinguishing delete key
+		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
+		annotationVal := "delete"
+		if resource.Annotations == nil {
+			resource.Annotations = map[string]string{annotationKey: annotationVal}
+		} else {
+			resource.Annotations[annotationKey] = annotationVal
+		}
+
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillWorkflowSchema(resource)
+		}
+		s.notify <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*resource}}
 	default:
 		err := fmt.Errorf("unknown delete event type: %T", obj)
 		setupLog.Error(err, "unknown type in delete event")
@@ -427,4 +483,18 @@ func (s *FlowWatcher) backfillRolloutSchema(rollout *rolloutsv1.Rollout) {
 	apiVersion, kind := gvk.ToAPIVersionAndKind()
 	rollout.APIVersion = apiVersion
 	rollout.Kind = kind
+}
+
+// Backfill TypeMeta data that has been dropped
+// See: https://github.com/kubernetes/client-go/issues/541
+func (s *FlowWatcher) backfillWorkflowSchema(workflow *workflowsv1.Workflow) {
+	setupLog.Info("backfilling workflow api version kind")
+	gvk, err := apiutil.GVKForObject(workflow, s.scheme)
+	if err != nil {
+		setupLog.Error(err, "unable to get rollout schema info")
+		panic(err)
+	}
+	apiVersion, kind := gvk.ToAPIVersionAndKind()
+	workflow.APIVersion = apiVersion
+	workflow.Kind = kind
 }
