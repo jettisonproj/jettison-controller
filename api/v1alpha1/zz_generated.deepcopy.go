@@ -22,6 +22,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -59,6 +60,20 @@ func (in *BaseStepFields) DeepCopyInto(out *BaseStepFields) {
 		in, out := &in.DependsOn, &out.DependsOn
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.Volumes != nil {
+		in, out := &in.Volumes, &out.Volumes
+		*out = make([]corev1.Volume, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = make([]corev1.VolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 

@@ -1,5 +1,9 @@
 package v1alpha1
 
+import (
+	corev1 "k8s.io/api/core/v1"
+)
+
 const (
 	// The available step sources. Should be pascalcased
 	dockerBuildTestStepSource        = "DockerBuildTest"
@@ -29,6 +33,10 @@ type BaseStepFields struct {
 	StepSource string `json:"stepSource"`
 	// The names of steps which this step depends on
 	DependsOn []string `json:"dependsOn,omitempty"`
+	// Optional volumes to be used in the step container
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+	// Optional volume mounts for the step container
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 func (s BaseStepFields) GetStepName() string {

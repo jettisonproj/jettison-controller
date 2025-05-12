@@ -33,6 +33,23 @@ const (
 	kubeconfig  = "/etc/rancher/k3s/k3s.yaml"
 )
 
+func TestIntegrationWorkflowTemplates(t *testing.T) {
+	// create the custom resource client
+	client, err := NewCrClient(kubeconfig)
+	require.Nil(t, err, "failed to create CR client")
+
+	// get the expected workflow template from file
+	workflowTemplateFilePath := fmt.Sprintf("%s/%s", testdataDir, "cicd-templates.yaml")
+	workflowTemplateExpected, err := parseYaml[workflowsv1.ClusterWorkflowTemplate](workflowTemplateFilePath)
+	require.Nilf(t, err, "failed to parse workflow template %s", workflowTemplateFilePath)
+
+	// get actual workflow template from api
+	workflowTemplateActual, err := client.WorkflowTemplate().Get()
+	require.Nil(t, err, "failed to get workflow template")
+
+	require.Equal(t, workflowTemplateExpected, workflowTemplateActual)
+}
+
 func TestIntegrationGitHubPush(t *testing.T) {
 
 	// create the custom resource client

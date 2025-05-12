@@ -16,3 +16,10 @@ spec:
   - stepSource: DockerBuildTest
     dockerfilePath: subdir/Dockerfile
     dockerContextDir: "subdir"
+    volumeMounts:
+    - name: volume-mount-1
+      mountPath: /volume-mount-path-1
+    volumes:
+    - name: volume-1
+      secret:
+        secretName: volume-secret-1

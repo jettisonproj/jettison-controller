@@ -45,9 +45,25 @@ func getSensorTriggers(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrig
 }
 
 func getWorkflowTemplate(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]byte, error) {
-	flowWorkflowTemplateDAGTasks, triggerType, err := getWorkflowTemplateDAGTasks(flowTriggers, flowSteps)
+	flowWorkflowTemplateDAGTasks, additionalTemplates, triggerType, err := getWorkflowTemplateDAGTasks(flowTriggers, flowSteps)
 	if err != nil {
 		return nil, err
+	}
+
+	templates := []workflowsv1.Template{
+		{
+			Name: "main",
+			Inputs: workflowsv1.Inputs{
+				Parameters: globalWorkflowParameters,
+			},
+			DAG: &workflowsv1.DAGTemplate{
+				Tasks: flowWorkflowTemplateDAGTasks,
+			},
+		},
+	}
+
+	if len(additionalTemplates) > 0 {
+		templates = append(templates, additionalTemplates...)
 	}
 
 	workflowTemplate := workflowsv1.Workflow{
@@ -59,17 +75,7 @@ func getWorkflowTemplate(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTr
 			GenerateName: flow.Name + "-",
 		},
 		Spec: workflowsv1.WorkflowSpec{
-			Templates: []workflowsv1.Template{
-				{
-					Name: "main",
-					Inputs: workflowsv1.Inputs{
-						Parameters: globalWorkflowParameters,
-					},
-					DAG: &workflowsv1.DAGTemplate{
-						Tasks: flowWorkflowTemplateDAGTasks,
-					},
-				},
-			},
+			Templates:  templates,
 			Entrypoint: "main",
 			Arguments: workflowsv1.Arguments{
 				Parameters: globalWorkflowParameters,

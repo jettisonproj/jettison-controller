@@ -1,0 +1,215 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ClusterWorkflowTemplate
+metadata:
+  name: cicd-templates
+spec:
+  templates:
+  # deploy-step-github-check-start
+  # Starts a GitHub check for the specified commit.
+  # Outputs the check run id, so it can be completed later
+  - name: deploy-step-github-check-start
+    activeDeadlineSeconds: 300 # 5m
+    inputs:
+      parameters:
+      # github-app-id - app id used for updating GitHub checks
+      - name: github-app-id
+        value: "955485"
+      - name: repo-short
+      # workflow-url - the url to the Argo Workflow UI of this workflow run
+      - name: workflow-url
+        value: "https://argo.osoriano.com/workflows/{{workflow.namespace}}/{{workflow.name}}"
+      - name: event-type
+      - name: revision
+    container:
+      image: osoriano/deploy-steps-github-check:sha-9c772691d7978630c9981ef2683194a966d4a606
+      args:
+      - "./github-check-start.sh"
+      - "{{inputs.parameters.github-app-id}}"
+      - "/github-key/private-key.pem"
+      - "{{inputs.parameters.repo-short}}"
+      - "{{inputs.parameters.workflow-url}}"
+      - "{{inputs.parameters.event-type}}"
+      - "{{inputs.parameters.revision}}"
+      - "/tmp/check-run-id.txt"
+      volumeMounts:
+      - name: github-key
+        mountPath: /github-key
+    # Mount the configuration so we can update git
+    volumes:
+    - name: github-key
+      secret:
+        secretName: github-key
+    outputs:
+      parameters:
+      - name: check-run-id
+        valueFrom:
+          path: "/tmp/check-run-id.txt"
+        # export a global parameter so that it's available in the global exit handler.
+        # it can be accessed under the object: workflow.outputs.parameters
+        globalName: check-run-id
+  # docker-build-test
+  # Useful for PR build. Will run the image build, but skips publishing it
+  - name: docker-build-test
+    inputs:
+      parameters:
+      - name: repo
+      - name: revision
+      - name: dockerfile-path
+      - name: docker-context-dir
+      artifacts:
+      - name: repo-source
+        path: /repo
+        git:
+          repo: "{{inputs.parameters.repo}}"
+          revision: "{{inputs.parameters.revision}}"
+    container:
+      image: gcr.io/kaniko-project/executor:latest
+      args:
+      - "--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}"
+      - "--context=dir:///repo/{{inputs.parameters.docker-context-dir}}"
+      - "--no-push"
+  # docker-build-test-publish
+  # Useful for commit build. Will run and publish the image build
+  - name: docker-build-test-publish
+    inputs:
+      parameters:
+      - name: repo
+      - name: revision
+      - name: dockerfile-path
+      - name: docker-context-dir
+      - name: image-repo
+      - name: image-registry
+        value: "ghcr.io/"
+      artifacts:
+      - name: repo-source
+        path: /repo
+        git:
+          repo: "{{inputs.parameters.repo}}"
+          revision: "{{inputs.parameters.revision}}"
+    container:
+      image: gcr.io/kaniko-project/executor:latest
+      args:
+      - "--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}"
+      - "--context=dir:///repo/{{inputs.parameters.docker-context-dir}}"
+      - "--destination={{=inputs.parameters['image-registry'] + inputs.parameters['image-repo'] + join(split(inputs.parameters['dockerfile-path'], '/')[:-1], ) + ':' + inputs.parameters.revision}}"
+      volumeMounts:
+      - name: docker-config
+        mountPath: /kaniko/.docker
+    # Mount the configuration so we can push the image.
+    volumes:
+    - name: docker-config
+      secret:
+        secretName: regcred
+  # deploy-step-argocd
+  # Deploy an image revision to the resource in the specified
+  # argo cd config repo
+  - name: deploy-step-argocd
+    inputs:
+      parameters:
+      - name: deploy-repo
+      - name: deploy-revision
+      # github-app-id - app id used for updating the deploy-repo
+      - name: github-app-id
+        value: "955485"
+      # github-app-user-id - app id used for updating the deploy-repo
+      - name: github-app-user-id
+        value: "176784108"
+      # github-app-user-name - app user name for updating the deploy repo
+      - name: github-app-user-name
+        value: "argocd-config-updater[bot]"
+      - name: resource-path
+      - name: image-repo
+      - name: build-revision
+      # Optionally specify the approval status of the deployment.
+      # Defaults to 'YES'. If set to 'NO', fails the deployment
+      - name: deployment-approved
+        default: 'YES'
+      - name: image-registry
+        value: "ghcr.io/"
+    container:
+      image: osoriano/deploy-steps-argocd:sha-9c772691d7978630c9981ef2683194a966d4a606
+      args:
+      - "./deploy-step-argocd.sh"
+      - "{{inputs.parameters.deploy-repo}}"
+      - "{{inputs.parameters.deploy-revision}}"
+      - "{{inputs.parameters.github-app-id}}"
+      - "{{inputs.parameters.github-app-user-id}}"
+      - "{{inputs.parameters.github-app-user-name}}"
+      - "/github-key/private-key.pem"
+      - "{{inputs.parameters.resource-path}}"
+      - "{{inputs.parameters.image-registry}}"
+      - "{{inputs.parameters.image-repo}}"
+      - "{{inputs.parameters.build-revision}}"
+      - "{{inputs.parameters.deployment-approved}}"
+      volumeMounts:
+      - name: github-key
+        mountPath: /github-key
+    # Mount the configuration so we can push to git.
+    volumes:
+    - name: github-key
+      secret:
+        secretName: github-key
+    synchronization:
+      mutexes:
+        - name: "{{inputs.parameters.deploy-repo}}/{{inputs.parameters.resource-path}}"
+  # whalesay
+  # Placeholder until a proper integration test step is added
+  - name: whalesay
+    inputs:
+      parameters:
+      - name: message
+    container:
+      image: docker/whalesay
+      command: [cowsay]
+      args: ["{{inputs.parameters.message}}"]
+  # approval
+  # Waits until this step to be approved before continuing
+  - name: approval
+    activeDeadlineSeconds: 259200 # 3d
+    suspend: {}
+    inputs:
+      parameters:
+      - name: approve
+        description: Choose YES to continue workflow and deploy to prod
+        default: 'NO'
+        enum:
+        - 'YES'
+        - 'NO'
+    outputs:
+      parameters:
+      - name: approve
+        valueFrom:
+          supplied: {}
+  - name: deploy-step-github-check-complete
+    activeDeadlineSeconds: 300 # 5m
+    inputs:
+      parameters:
+      # github-app-id - app id used for updating GitHub checks
+      - name: github-app-id
+        value: "955485"
+      - name: repo-short
+      # workflow-url - the url to the Argo Workflow UI of this workflow run
+      - name: workflow-url
+        value: "https://argo.osoriano.com/workflows/{{workflow.namespace}}/{{workflow.name}}"
+      - name: event-type
+      - name: check-run-id
+      - name: workflow-status
+    container:
+      image: osoriano/deploy-steps-github-check:sha-9c772691d7978630c9981ef2683194a966d4a606
+      args:
+      - "./github-check-complete.sh"
+      - "{{inputs.parameters.github-app-id}}"
+      - "/github-key/private-key.pem"
+      - "{{inputs.parameters.repo-short}}"
+      - "{{inputs.parameters.workflow-url}}"
+      - "{{inputs.parameters.event-type}}"
+      - "{{inputs.parameters.check-run-id}}"
+      - "{{inputs.parameters.workflow-status}}"
+      volumeMounts:
+      - name: github-key
+        mountPath: /github-key
+    # Mount the configuration so we can update git
+    volumes:
+    - name: github-key
+      secret:
+        secretName: github-key

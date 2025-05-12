@@ -1,0 +1,232 @@
+#
+# Commit workflow for osoriano/rollouts-demo
+#
+# This depends on the following resources:
+# - secrets/regcrd - containing a "config.json" with docker auth credentials
+#
+# It uses the following parameters:
+# - repo         - the url for the repo which builds the docker image
+# - revision     - the revision to check out for the build repo
+# - repo-short   - the "org/name" portion of the github repo url
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: github-push
+spec:
+  dependencies:
+    - name: github-event-dep
+      eventSourceName: github
+      eventName: ghwebhook
+      filters:
+        data:
+          # Type of Github event that triggered the delivery: [pull_request, push, issues, label, ...]
+          # https://docs.github.com/en/developers/webhooks-and-events/webhook-events-and-payloads
+          - path: headers.X-Github-Event
+            type: string
+            value:
+              - push
+          - path: body.ref
+            type: string
+            value:
+              - refs/heads/master
+          - path: body.repository.clone_url
+            type: string
+            value:
+              - https://github.com/osoriano/rollouts-demo.git
+  triggers:
+    - template:
+        name: flow-trigger
+        k8s:
+          source:
+            resource:
+              apiVersion: argoproj.io/v1alpha1
+              kind: Workflow
+              metadata:
+                generateName: github-push-
+              spec:
+                activeDeadlineSeconds: 7200
+                arguments:
+                  parameters:
+                  - name: repo
+                  - name: revision
+                  - name: repo-short
+                entrypoint: main
+                hooks:
+                  exit:
+                    arguments:
+                      parameters:
+                      - name: repo-short
+                        value: '{{workflow.parameters.repo-short}}'
+                      - name: event-type
+                        value: commit
+                      - name: check-run-id
+                        value: '{{workflow.outputs.parameters.check-run-id}}'
+                      - name: workflow-status
+                        value: '{{workflow.status}}'
+                    templateRef:
+                      clusterScope: true
+                      name: cicd-templates
+                      template: deploy-step-github-check-complete
+                serviceAccountName: deploy-step-executor
+                templates:
+                - dag:
+                    tasks:
+                    - arguments:
+                        parameters:
+                        - name: repo-short
+                          value: '{{inputs.parameters.repo-short}}'
+                        - name: event-type
+                          value: commit
+                        - name: revision
+                          value: '{{inputs.parameters.revision}}'
+                      name: github-check-start
+                      templateRef:
+                        clusterScope: true
+                        name: cicd-templates
+                        template: deploy-step-github-check-start
+                    - arguments:
+                        parameters:
+                        - name: repo
+                          value: '{{inputs.parameters.repo}}'
+                        - name: revision
+                          value: '{{inputs.parameters.revision}}'
+                        - name: dockerfile-path
+                          value: subdir/Dockerfile
+                        - name: docker-context-dir
+                          value: subdir
+                        - name: image-repo
+                          value: '{{inputs.parameters.repo-short}}'
+                      name: docker-build-test-publish
+                      template: docker-build-test-publish
+                    - arguments:
+                        parameters:
+                        - name: deploy-repo
+                          value: https://github.com/osoriano/rollouts-demo-argo-configs.git
+                        - name: deploy-revision
+                          value: master
+                        - name: resource-path
+                          value: dev
+                        - name: image-repo
+                          value: '{{inputs.parameters.repo-short}}'
+                        - name: build-revision
+                          value: '{{inputs.parameters.revision}}'
+                      dependencies:
+                      - docker-build-test-publish
+                      name: deploy-to-dev
+                      templateRef:
+                        clusterScope: true
+                        name: cicd-templates
+                        template: deploy-step-argocd
+                    - arguments:
+                        parameters:
+                        - name: deploy-repo
+                          value: https://github.com/osoriano/rollouts-demo-argo-configs.git
+                        - name: deploy-revision
+                          value: master
+                        - name: resource-path
+                          value: staging
+                        - name: image-repo
+                          value: '{{inputs.parameters.repo-short}}'
+                        - name: build-revision
+                          value: '{{inputs.parameters.revision}}'
+                      dependencies:
+                      - docker-build-test-publish
+                      name: deploy-to-staging
+                      templateRef:
+                        clusterScope: true
+                        name: cicd-templates
+                        template: deploy-step-argocd
+                    - dependencies:
+                      - deploy-to-staging
+                      name: approve-to-prod
+                      templateRef:
+                        clusterScope: true
+                        name: cicd-templates
+                        template: approval
+                    - arguments:
+                        parameters:
+                        - name: deploy-repo
+                          value: https://github.com/osoriano/rollouts-demo-argo-configs.git
+                        - name: deploy-revision
+                          value: master
+                        - name: resource-path
+                          value: prod
+                        - name: image-repo
+                          value: '{{inputs.parameters.repo-short}}'
+                        - name: build-revision
+                          value: '{{inputs.parameters.revision}}'
+                        - name: deployment-approved
+                          value: '{{tasks.approve-to-prod.outputs.parameters.approve}}'
+                      dependencies:
+                      - approve-to-prod
+                      name: deploy-to-prod
+                      templateRef:
+                        clusterScope: true
+                        name: cicd-templates
+                        template: deploy-step-argocd
+                  inputs:
+                    parameters:
+                    - name: repo
+                    - name: revision
+                    - name: repo-short
+                  name: main
+                - container:
+                    args:
+                    - --dockerfile=/repo/{{inputs.parameters.dockerfile-path}}
+                    - --context=dir:///repo/{{inputs.parameters.docker-context-dir}}
+                    - --destination={{=inputs.parameters['image-registry'] + inputs.parameters['image-repo']
+                      + join(split(inputs.parameters['dockerfile-path'], '/')[:-1], ) + ':' + inputs.parameters.revision}}
+                    image: gcr.io/kaniko-project/executor:latest
+                    volumeMounts:
+                    - mountPath: /kaniko/.docker
+                      name: docker-config
+                    - mountPath: /volume-mount-path-1
+                      name: volume-mount-1
+                  inputs:
+                    artifacts:
+                    - git:
+                        repo: '{{inputs.parameters.repo}}'
+                        revision: '{{inputs.parameters.revision}}'
+                      name: repo-source
+                      path: /repo
+                    parameters:
+                    - name: repo
+                    - name: revision
+                    - name: dockerfile-path
+                    - name: docker-context-dir
+                    - name: image-repo
+                    - name: image-registry
+                      value: ghcr.io/
+                  name: docker-build-test-publish
+                  volumes:
+                  - name: docker-config
+                    secret:
+                      secretName: regcred
+                  - name: volume-1
+                    secret:
+                      secretName: volume-secret-1
+          operation: create
+          parameters:
+            # Set the build url in the workflow
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.repository.clone_url
+              dest: spec.arguments.parameters.0.value
+            # Set the revision to check out
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.after
+              dest: spec.arguments.parameters.1.value
+            # Set the repo full_name in the workflow
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.repository.full_name
+              dest: spec.arguments.parameters.2.value
+            # Append short sha to dynamically assign workflow name <rollouts-demo-commit-2c065a>
+            - src:
+                dependencyName: github-event-dep
+                dataTemplate: "{{ .Input.body.after | substr 0 7 }}-"
+              dest: metadata.generateName
+              operation: append
+  template:
+    serviceAccountName: operate-workflow-sa

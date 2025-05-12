@@ -28,8 +28,16 @@ func TestBuildSensor(t *testing.T) {
 			"github-pr-minimal-sensor.yaml",
 		},
 		{
+			"github-pr-maximal.yaml",
+			"github-pr-maximal-sensor.yaml",
+		},
+		{
 			"github-push-minimal.yaml",
 			"github-push-minimal-sensor.yaml",
+		},
+		{
+			"github-push-maximal.yaml",
+			"github-push-maximal-sensor.yaml",
 		},
 	}
 

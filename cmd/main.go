@@ -42,6 +42,7 @@ import (
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	"github.com/jettisonproj/jettison-controller/internal/controller"
 	"github.com/jettisonproj/jettison-controller/internal/webserver"
+	"github.com/jettisonproj/jettison-controller/internal/workflowtemplates"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -181,6 +182,8 @@ func main() {
 		setupLog.Error(err, "unable to create webserver", "webserver", "Flow")
 		os.Exit(1)
 	}
+
+	go workflowtemplates.CreateWorkflowTemplates(mgr.GetClient())
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

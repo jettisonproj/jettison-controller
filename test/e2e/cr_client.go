@@ -10,8 +10,9 @@ import (
 // A client for custom resources (CRs)
 // Uses kubernetes.Clientset
 type CrClient struct {
-	flowClient   *FlowClient
-	sensorClient *SensorClient
+	flowClient             *FlowClient
+	sensorClient           *SensorClient
+	workflowTemplateClient *WorkflowTemplateClient
 }
 
 // Create a new client using the specified kubeconfig path
@@ -30,8 +31,9 @@ func NewCrClient(kubeconfig string) (*CrClient, error) {
 
 	commonClient := &CommonClient{clientset}
 	return &CrClient{
-		flowClient:   &FlowClient{commonClient},
-		sensorClient: &SensorClient{commonClient},
+		flowClient:             &FlowClient{commonClient},
+		sensorClient:           &SensorClient{commonClient},
+		workflowTemplateClient: &WorkflowTemplateClient{commonClient},
 	}, nil
 }
 
@@ -41,4 +43,8 @@ func (c *CrClient) Flow() *FlowClient {
 
 func (c *CrClient) Sensor() *SensorClient {
 	return c.sensorClient
+}
+
+func (c *CrClient) WorkflowTemplate() *WorkflowTemplateClient {
+	return c.workflowTemplateClient
 }

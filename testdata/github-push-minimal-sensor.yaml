@@ -77,7 +77,7 @@ spec:
                           value: "Dockerfile"
                         - name: docker-context-dir
                           value: ""
-                        - name: image-destination
+                        - name: image-repo
                           value: "{{inputs.parameters.repo-short}}"
                       templateRef:
                         name: cicd-templates
@@ -92,7 +92,7 @@ spec:
                           value: "main"
                         - name: resource-path
                           value: "dev"
-                        - name: image-destination
+                        - name: image-repo
                           value: "{{inputs.parameters.repo-short}}"
                         - name: build-revision
                           value: "{{inputs.parameters.revision}}"
@@ -110,7 +110,7 @@ spec:
                           value: "main"
                         - name: resource-path
                           value: "staging"
-                        - name: image-destination
+                        - name: image-repo
                           value: "{{inputs.parameters.repo-short}}"
                         - name: build-revision
                           value: "{{inputs.parameters.revision}}"
@@ -134,7 +134,7 @@ spec:
                           value: "main"
                         - name: resource-path
                           value: "prod"
-                        - name: image-destination
+                        - name: image-repo
                           value: "{{inputs.parameters.repo-short}}"
                         - name: build-revision
                           value: "{{inputs.parameters.revision}}"

@@ -23,6 +23,8 @@ func TestFlowPR(t *testing.T) {
 		expectedPullRequestEvents     []string
 		expectedDockerfilePath        string
 		expectedDockerfileContextDir  string
+		expectedVolumesLen            int
+		expectedVolumeMountsLen       int
 	}{
 		{
 			// For the minimal yaml, defaults are expected
@@ -32,6 +34,8 @@ func TestFlowPR(t *testing.T) {
 			[]string{"opened", "reopened", "synchronize"},
 			"Dockerfile",
 			"",
+			0,
+			0,
 		},
 		{
 			// For the maximal yaml, overrides are expected
@@ -41,6 +45,8 @@ func TestFlowPR(t *testing.T) {
 			[]string{"opened"},
 			"subdir/Dockerfile",
 			"subdir",
+			1,
+			1,
 		},
 	}
 
@@ -79,6 +85,8 @@ func TestFlowPR(t *testing.T) {
 			require.Truef(t, ok, "failed to parse step as *DockerBuildTestStep: %T", flowStep)
 			require.Equal(t, tc.expectedDockerfilePath, *buildStep.DockerfilePath)
 			require.Equal(t, tc.expectedDockerfileContextDir, *buildStep.DockerContextDir)
+			require.Equal(t, tc.expectedVolumesLen, len(buildStep.Volumes))
+			require.Equal(t, tc.expectedVolumeMountsLen, len(buildStep.VolumeMounts))
 		})
 	}
 }
@@ -90,6 +98,8 @@ func TestFlowPush(t *testing.T) {
 		expectedBaseRef               string
 		expectedDockerfilePath        string
 		expectedDockerfileContextDir  string
+		expectedVolumesLen            int
+		expectedVolumeMountsLen       int
 	}{
 		{
 			// For the minimal yaml, defaults are expected
@@ -98,6 +108,8 @@ func TestFlowPush(t *testing.T) {
 			"main",
 			"Dockerfile",
 			"",
+			0,
+			0,
 		},
 		{
 			// For the maximal yaml, overrides are expected
@@ -106,6 +118,8 @@ func TestFlowPush(t *testing.T) {
 			"master",
 			"subdir/Dockerfile",
 			"subdir",
+			1,
+			1,
 		},
 	}
 
@@ -146,6 +160,8 @@ func TestFlowPush(t *testing.T) {
 			require.Truef(t, ok, "failed to parse step 0 as *DockerBuildTestPublishStep: %T", flowSteps[0])
 			require.Equal(t, tc.expectedDockerfilePath, *buildStep.DockerfilePath)
 			require.Equal(t, tc.expectedDockerfileContextDir, *buildStep.DockerContextDir)
+			require.Equal(t, tc.expectedVolumesLen, len(buildStep.Volumes))
+			require.Equal(t, tc.expectedVolumeMountsLen, len(buildStep.VolumeMounts))
 
 			// Step 1 - Dev
 			require.Equal(t, "deploy-to-dev", flowSteps[1].GetStepName())

@@ -17,6 +17,13 @@ spec:
     stepSource: DockerBuildTestPublish
     dockerfilePath: "subdir/Dockerfile"
     dockerContextDir: "subdir"
+    volumeMounts:
+    - name: volume-mount-1
+      mountPath: /volume-mount-path-1
+    volumes:
+    - name: volume-1
+      secret:
+        secretName: volume-secret-1
   - stepName: deploy-to-dev
     stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"

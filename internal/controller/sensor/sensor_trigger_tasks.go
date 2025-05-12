@@ -2,8 +2,12 @@ package sensor
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/jettisonproj/jettison-controller/internal/workflowtemplates"
 
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
@@ -46,8 +50,8 @@ func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.
 					},
 				},
 				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         "cicd-templates",
-					Template:     "deploy-step-github-check-start",
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.GitHubCheckStartTemplate.Name,
 					ClusterScope: true,
 				},
 			}
@@ -80,8 +84,8 @@ func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.
 					},
 				},
 				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         "cicd-templates",
-					Template:     "deploy-step-github-check-start",
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.GitHubCheckStartTemplate.Name,
 					ClusterScope: true,
 				},
 			}
@@ -94,12 +98,13 @@ func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.
 	return initialDAGTasks, triggerType, nil
 }
 
-func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]workflowsv1.DAGTask, string, error) {
+func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]workflowsv1.DAGTask, []workflowsv1.Template, string, error) {
 	dagTasks, triggerType, err := getInitialDAGTasks(flowTriggers)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to get initial dag tasks: %s", err)
+		return nil, nil, "", fmt.Errorf("failed to get initial dag tasks: %s", err)
 	}
 
+	additionalTemplates := []workflowsv1.Template{}
 	manualApprovalSteps := map[string]bool{}
 	for i := range flowSteps {
 		switch step := flowSteps[i].(type) {
@@ -126,14 +131,35 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						},
 					},
 				},
-				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         "cicd-templates",
-					Template:     "docker-build-test",
-					ClusterScope: true,
-				},
 				Dependencies: step.DependsOn,
 			}
-			dagTasks = append(dagTasks, dagTask)
+
+			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 {
+				dagTask.TemplateRef = &workflowsv1.TemplateRef{
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.DockerBuildTestTemplate.Name,
+					ClusterScope: true,
+				}
+				dagTasks = append(dagTasks, dagTask)
+			} else {
+				// From the Workflow, it is not possible to override the volume and
+				// volumeMounts of the WorkflowTemplate, so generate the template here
+				// See: https://github.com/argoproj/argo-workflows/issues/6677
+				templateName := strings.ToLower(*step.StepName)
+
+				template := workflowtemplates.DockerBuildTestTemplate
+				template.Name = templateName
+
+				templateContainerCopy := *template.Container
+				template.Container = &templateContainerCopy
+
+				template.Container.VolumeMounts = step.VolumeMounts
+				template.Volumes = step.Volumes
+				additionalTemplates = append(additionalTemplates, template)
+
+				dagTask.Template = templateName
+				dagTasks = append(dagTasks, dagTask)
+			}
 		case *v1alpha1.DockerBuildTestPublishStep:
 			dagTask := workflowsv1.DAGTask{
 				Name: *step.StepName,
@@ -156,19 +182,45 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 							Value: workflowsv1.AnyStringPtr(*step.DockerContextDir),
 						},
 						{
-							Name:  "image-destination",
+							Name:  "image-repo",
 							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.repo-short}}"),
 						},
 					},
 				},
-				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         "cicd-templates",
-					Template:     "docker-build-test-publish",
-					ClusterScope: true,
-				},
 				Dependencies: step.DependsOn,
 			}
-			dagTasks = append(dagTasks, dagTask)
+			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 {
+				dagTask.TemplateRef = &workflowsv1.TemplateRef{
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.DockerBuildTestPublishTemplate.Name,
+					ClusterScope: true,
+				}
+				dagTasks = append(dagTasks, dagTask)
+			} else {
+				// From the Workflow, it is not possible to override the volume and
+				// volumeMounts of the WorkflowTemplate, so generate the template here
+				// This should be kept in sync with the cicd-templates
+				// See: https://github.com/argoproj/argo-workflows/issues/6677
+				templateName := strings.ToLower(*step.StepName)
+				template := workflowtemplates.DockerBuildTestPublishTemplate
+				template.Name = templateName
+
+				templateVolumesCopy := make([]corev1.Volume, len(template.Volumes))
+				copy(templateVolumesCopy, template.Volumes)
+				template.Volumes = templateVolumesCopy
+
+				template.Volumes = append(template.Volumes, step.Volumes...)
+
+				templateContainerCopy := *template.Container
+				template.Container = &templateContainerCopy
+
+				template.Container.VolumeMounts = append(template.Container.VolumeMounts, step.VolumeMounts...)
+
+				additionalTemplates = append(additionalTemplates, template)
+
+				dagTask.Template = templateName
+				dagTasks = append(dagTasks, dagTask)
+			}
 		case *v1alpha1.ArgoCDStep:
 			parameters := []workflowsv1.Parameter{
 				{
@@ -184,7 +236,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					Value: workflowsv1.AnyStringPtr(step.RepoPath),
 				},
 				{
-					Name:  "image-destination",
+					Name:  "image-repo",
 					Value: workflowsv1.AnyStringPtr("{{inputs.parameters.repo-short}}"),
 				},
 				{
@@ -212,8 +264,8 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					Parameters: parameters,
 				},
 				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         "cicd-templates",
-					Template:     "deploy-step-argocd",
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.ArgoCDTemplate.Name,
 					ClusterScope: true,
 				},
 				Dependencies: step.DependsOn,
@@ -231,8 +283,8 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					},
 				},
 				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         "cicd-templates",
-					Template:     "whalesay",
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.WhalesayTemplate.Name,
 					ClusterScope: true,
 				},
 				Dependencies: step.DependsOn,
@@ -243,18 +295,18 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 			dagTask := workflowsv1.DAGTask{
 				Name: *step.StepName,
 				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         "cicd-templates",
-					Template:     "approval",
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.ApprovalTemplate.Name,
 					ClusterScope: true,
 				},
 				Dependencies: step.DependsOn,
 			}
 			dagTasks = append(dagTasks, dagTask)
 		default:
-			return nil, "", fmt.Errorf("unknown Flow step type: %T", step)
+			return nil, nil, "", fmt.Errorf("unknown Flow step type: %T", step)
 		}
 	}
-	return dagTasks, triggerType, nil
+	return dagTasks, additionalTemplates, triggerType, nil
 }
 
 func getFinalDAGTask(triggerType string) workflowsv1.LifecycleHook {
@@ -280,8 +332,8 @@ func getFinalDAGTask(triggerType string) workflowsv1.LifecycleHook {
 			},
 		},
 		TemplateRef: &workflowsv1.TemplateRef{
-			Name:         "cicd-templates",
-			Template:     "deploy-step-github-check-complete",
+			Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+			Template:     workflowtemplates.GitHubCheckCompleteTemplate.Name,
 			ClusterScope: true,
 		},
 	}
