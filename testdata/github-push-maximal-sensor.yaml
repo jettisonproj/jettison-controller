@@ -136,13 +136,6 @@ spec:
                         clusterScope: true
                         name: cicd-templates
                         template: deploy-step-argocd
-                    - dependencies:
-                      - deploy-to-staging
-                      name: approve-to-prod
-                      templateRef:
-                        clusterScope: true
-                        name: cicd-templates
-                        template: approval
                     - arguments:
                         parameters:
                         - name: deploy-repo
@@ -155,10 +148,8 @@ spec:
                           value: '{{inputs.parameters.repo-short}}'
                         - name: build-revision
                           value: '{{inputs.parameters.revision}}'
-                        - name: deployment-approved
-                          value: '{{tasks.approve-to-prod.outputs.parameters.approve}}'
                       dependencies:
-                      - approve-to-prod
+                      - deploy-to-staging
                       name: deploy-to-prod
                       templateRef:
                         clusterScope: true

@@ -275,12 +275,6 @@ var (
 				{
 					Name: "build-revision",
 				},
-				// deployment-approved - Optionally specify the approval status of the deployment.
-				//                       Defaults to 'YES'. If set to 'NO', fails the deployment
-				{
-					Name:    "deployment-approved",
-					Default: workflowsv1.AnyStringPtr("YES"),
-				},
 				// image-registry - the image registry used for updating images
 				{
 					Name:  "image-registry",
@@ -302,7 +296,6 @@ var (
 				"{{inputs.parameters.image-registry}}",
 				"{{inputs.parameters.image-repo}}",
 				"{{inputs.parameters.build-revision}}",
-				"{{inputs.parameters.deployment-approved}}",
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -328,39 +321,6 @@ var (
 				{
 					// todo may need to include namespace
 					Name: "{{inputs.parameters.deploy-repo}}/{{inputs.parameters.resource-path}}",
-				},
-			},
-		},
-	}
-
-	// approval
-	// Waits until this step to be approved before continuing
-	ApprovalTemplate = workflowsv1.Template{
-		Name:                  "approval",
-		ActiveDeadlineSeconds: &activeDeadlineSeconds3d,
-		Suspend:               &workflowsv1.SuspendTemplate{},
-		Inputs: workflowsv1.Inputs{
-			Parameters: []workflowsv1.Parameter{
-				{
-					Name:        "approve",
-					Description: workflowsv1.AnyStringPtr("Choose YES to continue workflow and deploy to prod"),
-					Default:     workflowsv1.AnyStringPtr("NO"),
-					Enum: []workflowsv1.AnyString{
-						workflowsv1.AnyString("YES"),
-						workflowsv1.AnyString("NO"),
-					},
-				},
-			},
-		},
-		// export a global parameter so that the approval is  available in future
-		// steps. It can be accessed under the object: workflow.outputs.parameters
-		Outputs: workflowsv1.Outputs{
-			Parameters: []workflowsv1.Parameter{
-				{
-					Name: "approve",
-					ValueFrom: &workflowsv1.ValueFrom{
-						Supplied: &workflowsv1.SuppliedValueFrom{},
-					},
 				},
 			},
 		},
@@ -448,7 +408,6 @@ var (
 				DockerBuildTestTemplate,
 				DockerBuildTestPublishTemplate,
 				ArgoCDTemplate,
-				ApprovalTemplate,
 				GitHubCheckCompleteTemplate,
 			},
 		},

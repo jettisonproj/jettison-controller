@@ -83,12 +83,6 @@ func parseStep(rawStep RawMessage) (v1alpha1base.BaseStep, error) {
 			return nil, fmt.Errorf("failed to parse ArgoCDStep: %s", err)
 		}
 		return &argoCDStep, nil
-	case manualApprovalStepSource:
-		manualApprovalStep := ManualApprovalStep{}
-		if err := json.Unmarshal(rawStep.RawMessage, &manualApprovalStep); err != nil {
-			return nil, fmt.Errorf("failed to parse ManualApprovalStep: %s", err)
-		}
-		return &manualApprovalStep, nil
 	default:
 		return nil, fmt.Errorf("unknown stepSource: %s should be one of: %s", baseStep.StepSource, strings.Join(stepSources, ", "))
 	}

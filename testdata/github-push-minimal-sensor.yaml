@@ -119,12 +119,6 @@ spec:
                         template: deploy-step-argocd
                         clusterScope: true
                       dependencies: [docker-build-test-publish]
-                    - name: approve-to-prod
-                      templateRef:
-                        name: cicd-templates
-                        template: approval
-                        clusterScope: true
-                      dependencies: [deploy-to-staging]
                     - name: deploy-to-prod
                       arguments:
                         parameters:
@@ -138,13 +132,11 @@ spec:
                           value: "{{inputs.parameters.repo-short}}"
                         - name: build-revision
                           value: "{{inputs.parameters.revision}}"
-                        - name: deployment-approved
-                          value: "{{tasks.approve-to-prod.outputs.parameters.approve}}"
                       templateRef:
                         name: cicd-templates
                         template: deploy-step-argocd
                         clusterScope: true
-                      dependencies: [approve-to-prod]
+                      dependencies: [deploy-to-staging]
                 serviceAccountName: deploy-step-executor
                 entrypoint: main
                 arguments:

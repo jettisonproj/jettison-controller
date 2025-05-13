@@ -9,7 +9,6 @@ const (
 	dockerBuildTestStepSource        = "DockerBuildTest"
 	dockerBuildTestPublishStepSource = "DockerBuildTestPublish"
 	argoCDStepSource                 = "ArgoCD"
-	manualApprovalStepSource         = "ManualApproval"
 )
 
 var (
@@ -17,7 +16,6 @@ var (
 		dockerBuildTestStepSource,
 		dockerBuildTestPublishStepSource,
 		argoCDStepSource,
-		manualApprovalStepSource,
 	}
 )
 
@@ -84,9 +82,6 @@ type DockerBuildTestPublishStep struct {
 
 // Deploy using ArgoCD.
 //
-// Approvals (optional): If this stage depends on a `ManualApprovalStep`,
-// and the approval status is 'NO', it will cause this step to fail
-//
 // Synchronization: For each combination of RepoUrl/RepoPath, only one
 // step can run at a time
 type ArgoCDStep struct {
@@ -104,8 +99,4 @@ type ArgoCDStep struct {
 	// Defaults to "main"
 	// +optional
 	BaseRef *string `json:"baseRef,omitempty"`
-}
-
-type ManualApprovalStep struct {
-	BaseStepFields
 }

@@ -149,7 +149,7 @@ func TestFlowPush(t *testing.T) {
 			require.Equal(t, "https://github.com/osoriano/rollouts-demo.git", pushTrigger.RepoUrl)
 			require.Equal(t, tc.expectedBaseRef, *pushTrigger.BaseRef)
 
-			require.Len(t, flowSteps, 5)
+			require.Len(t, flowSteps, 4)
 
 			// Step 0 - Build
 			require.Equal(t, "docker-build-test-publish", flowSteps[0].GetStepName())
@@ -185,21 +185,13 @@ func TestFlowPush(t *testing.T) {
 			require.Equal(t, "staging", stagingStep.RepoPath)
 			require.Equal(t, tc.expectedBaseRef, *stagingStep.BaseRef)
 
-			// Step 3 - Approval
-			require.Equal(t, "approve-to-prod", flowSteps[3].GetStepName())
-			require.Equal(t, "ManualApproval", flowSteps[3].GetStepSource())
+			// Step 3 - Prod
+			require.Equal(t, "deploy-to-prod", flowSteps[3].GetStepName())
+			require.Equal(t, "ArgoCD", flowSteps[3].GetStepSource())
 			require.Equal(t, []string{"deploy-to-staging"}, flowSteps[3].GetDependsOn())
 
-			_, ok = flowSteps[3].(*v1alpha1.ManualApprovalStep)
-			require.Truef(t, ok, "failed to parse step 3 as *ManualApprovalStep: %T", flowSteps[3])
-
-			// Step 4 - Prod
-			require.Equal(t, "deploy-to-prod", flowSteps[4].GetStepName())
-			require.Equal(t, "ArgoCD", flowSteps[4].GetStepSource())
-			require.Equal(t, []string{"approve-to-prod"}, flowSteps[4].GetDependsOn())
-
-			prodStep, ok := flowSteps[4].(*v1alpha1.ArgoCDStep)
-			require.Truef(t, ok, "failed to parse step 4 as *ArgoCDStep: %T", flowSteps[4])
+			prodStep, ok := flowSteps[3].(*v1alpha1.ArgoCDStep)
+			require.Truef(t, ok, "failed to parse step 3 as *ArgoCDStep: %T", flowSteps[3])
 			require.Equal(t, "https://github.com/osoriano/rollouts-demo-argo-configs.git", prodStep.RepoUrl)
 			require.Equal(t, "prod", prodStep.RepoPath)
 			require.Equal(t, tc.expectedBaseRef, *prodStep.BaseRef)

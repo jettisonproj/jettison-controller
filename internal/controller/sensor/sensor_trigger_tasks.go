@@ -105,7 +105,6 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 	}
 
 	additionalTemplates := []workflowsv1.Template{}
-	manualApprovalSteps := map[string]bool{}
 	for i := range flowSteps {
 		switch step := flowSteps[i].(type) {
 		case *v1alpha1.DockerBuildTestStep:
@@ -222,62 +221,36 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				dagTasks = append(dagTasks, dagTask)
 			}
 		case *v1alpha1.ArgoCDStep:
-			parameters := []workflowsv1.Parameter{
-				{
-					Name:  "deploy-repo",
-					Value: workflowsv1.AnyStringPtr(step.RepoUrl),
-				},
-				{
-					Name:  "deploy-revision",
-					Value: workflowsv1.AnyStringPtr(*step.BaseRef),
-				},
-				{
-					Name:  "resource-path",
-					Value: workflowsv1.AnyStringPtr(step.RepoPath),
-				},
-				{
-					Name:  "image-repo",
-					Value: workflowsv1.AnyStringPtr("{{inputs.parameters.repo-short}}"),
-				},
-				{
-					Name:  "build-revision",
-					Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision}}"),
-				},
-			}
-
-			// If this ArgoCDStep depends on a ManualApprovalStep, then propagate
-			// the approval status in order to pass/fail the deployment
-			// Note that this relies on the step ordering. This may be ok since the
-			// steps are usually in topological order
-			for j := range step.DependsOn {
-				if manualApprovalSteps[step.DependsOn[j]] {
-					parameters = append(parameters, workflowsv1.Parameter{
-						Name:  "deployment-approved",
-						Value: workflowsv1.AnyStringPtr(fmt.Sprintf("{{tasks.%s.outputs.parameters.approve}}", step.DependsOn[j])),
-					})
-				}
-			}
 
 			dagTask := workflowsv1.DAGTask{
 				Name: *step.StepName,
 				Arguments: workflowsv1.Arguments{
-					Parameters: parameters,
+					Parameters: []workflowsv1.Parameter{
+						{
+							Name:  "deploy-repo",
+							Value: workflowsv1.AnyStringPtr(step.RepoUrl),
+						},
+						{
+							Name:  "deploy-revision",
+							Value: workflowsv1.AnyStringPtr(*step.BaseRef),
+						},
+						{
+							Name:  "resource-path",
+							Value: workflowsv1.AnyStringPtr(step.RepoPath),
+						},
+						{
+							Name:  "image-repo",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.repo-short}}"),
+						},
+						{
+							Name:  "build-revision",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision}}"),
+						},
+					},
 				},
 				TemplateRef: &workflowsv1.TemplateRef{
 					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
 					Template:     workflowtemplates.ArgoCDTemplate.Name,
-					ClusterScope: true,
-				},
-				Dependencies: step.DependsOn,
-			}
-			dagTasks = append(dagTasks, dagTask)
-		case *v1alpha1.ManualApprovalStep:
-			manualApprovalSteps[*step.StepName] = true
-			dagTask := workflowsv1.DAGTask{
-				Name: *step.StepName,
-				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
-					Template:     workflowtemplates.ApprovalTemplate.Name,
 					ClusterScope: true,
 				},
 				Dependencies: step.DependsOn,

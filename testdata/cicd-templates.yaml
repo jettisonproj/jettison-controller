@@ -120,10 +120,6 @@ spec:
       - name: resource-path
       - name: image-repo
       - name: build-revision
-      # Optionally specify the approval status of the deployment.
-      # Defaults to 'YES'. If set to 'NO', fails the deployment
-      - name: deployment-approved
-        default: 'YES'
       - name: image-registry
         value: "ghcr.io/"
     container:
@@ -140,7 +136,6 @@ spec:
       - "{{inputs.parameters.image-registry}}"
       - "{{inputs.parameters.image-repo}}"
       - "{{inputs.parameters.build-revision}}"
-      - "{{inputs.parameters.deployment-approved}}"
       volumeMounts:
       - name: github-key
         mountPath: /github-key
@@ -152,24 +147,6 @@ spec:
     synchronization:
       mutexes:
         - name: "{{inputs.parameters.deploy-repo}}/{{inputs.parameters.resource-path}}"
-  # approval
-  # Waits until this step to be approved before continuing
-  - name: approval
-    activeDeadlineSeconds: 259200 # 3d
-    suspend: {}
-    inputs:
-      parameters:
-      - name: approve
-        description: Choose YES to continue workflow and deploy to prod
-        default: 'NO'
-        enum:
-        - 'YES'
-        - 'NO'
-    outputs:
-      parameters:
-      - name: approve
-        valueFrom:
-          supplied: {}
   - name: deploy-step-github-check-complete
     activeDeadlineSeconds: 300 # 5m
     inputs:

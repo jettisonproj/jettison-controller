@@ -31,14 +31,10 @@ spec:
     # baseRef: "main" # Defaults to main
     dependsOn:
       - docker-build-test-publish
-  - stepName: approve-to-prod
-    stepSource: ManualApproval
-    dependsOn:
-      - deploy-to-staging
   - stepName: deploy-to-prod
     stepSource: ArgoCD
     repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
     repoPath: "prod"
     # baseRef: "main" # Defaults to main
     dependsOn:
-      - approve-to-prod
+      - deploy-to-staging
