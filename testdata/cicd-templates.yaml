@@ -152,16 +152,6 @@ spec:
     synchronization:
       mutexes:
         - name: "{{inputs.parameters.deploy-repo}}/{{inputs.parameters.resource-path}}"
-  # whalesay
-  # Placeholder until a proper integration test step is added
-  - name: whalesay
-    inputs:
-      parameters:
-      - name: message
-    container:
-      image: docker/whalesay
-      command: [cowsay]
-      args: ["{{inputs.parameters.message}}"]
   # approval
   # Waits until this step to be approved before continuing
   - name: approval

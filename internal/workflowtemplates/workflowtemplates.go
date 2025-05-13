@@ -333,29 +333,6 @@ var (
 		},
 	}
 
-	// whalesay
-	// Placeholder until a proper integration test step is added
-	WhalesayTemplate = workflowsv1.Template{
-		Name: "whalesay",
-		Inputs: workflowsv1.Inputs{
-			Parameters: []workflowsv1.Parameter{
-				// message - the message to display
-				{
-					Name: "message",
-				},
-			},
-		},
-		Container: &corev1.Container{
-			Image: "docker/whalesay",
-			Command: []string{
-				"cowsay",
-			},
-			Args: []string{
-				"{{inputs.parameters.message}}",
-			},
-		},
-	}
-
 	// approval
 	// Waits until this step to be approved before continuing
 	ApprovalTemplate = workflowsv1.Template{
@@ -471,7 +448,6 @@ var (
 				DockerBuildTestTemplate,
 				DockerBuildTestPublishTemplate,
 				ArgoCDTemplate,
-				WhalesayTemplate,
 				ApprovalTemplate,
 				GitHubCheckCompleteTemplate,
 			},

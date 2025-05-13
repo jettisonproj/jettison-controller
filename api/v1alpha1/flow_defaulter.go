@@ -81,8 +81,6 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 				step.BaseRef = new(string)
 				*step.BaseRef = defaultBaseRef
 			}
-		case *DebugMessageStep:
-			// No defaults needed
 		case *ManualApprovalStep:
 			// No defaults needed
 		default:

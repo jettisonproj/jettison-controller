@@ -271,25 +271,6 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				Dependencies: step.DependsOn,
 			}
 			dagTasks = append(dagTasks, dagTask)
-		case *v1alpha1.DebugMessageStep:
-			dagTask := workflowsv1.DAGTask{
-				Name: *step.StepName,
-				Arguments: workflowsv1.Arguments{
-					Parameters: []workflowsv1.Parameter{
-						{
-							Name:  "message",
-							Value: workflowsv1.AnyStringPtr(step.Message),
-						},
-					},
-				},
-				TemplateRef: &workflowsv1.TemplateRef{
-					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
-					Template:     workflowtemplates.WhalesayTemplate.Name,
-					ClusterScope: true,
-				},
-				Dependencies: step.DependsOn,
-			}
-			dagTasks = append(dagTasks, dagTask)
 		case *v1alpha1.ManualApprovalStep:
 			manualApprovalSteps[*step.StepName] = true
 			dagTask := workflowsv1.DAGTask{

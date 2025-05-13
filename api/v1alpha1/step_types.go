@@ -9,7 +9,6 @@ const (
 	dockerBuildTestStepSource        = "DockerBuildTest"
 	dockerBuildTestPublishStepSource = "DockerBuildTestPublish"
 	argoCDStepSource                 = "ArgoCD"
-	debugMessageStepSource           = "DebugMessage"
 	manualApprovalStepSource         = "ManualApproval"
 )
 
@@ -18,7 +17,6 @@ var (
 		dockerBuildTestStepSource,
 		dockerBuildTestPublishStepSource,
 		argoCDStepSource,
-		debugMessageStepSource,
 		manualApprovalStepSource,
 	}
 )
@@ -106,13 +104,6 @@ type ArgoCDStep struct {
 	// Defaults to "main"
 	// +optional
 	BaseRef *string `json:"baseRef,omitempty"`
-}
-
-type DebugMessageStep struct {
-	BaseStepFields
-
-	// The debug message to print
-	Message string `json:"message"`
 }
 
 type ManualApprovalStep struct {
