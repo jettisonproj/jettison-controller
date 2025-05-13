@@ -78,6 +78,7 @@ spec:
       - name: dockerfile-path
       - name: docker-context-dir
       - name: image-repo
+      - name: dockerfile-dir
       - name: image-registry
         value: "ghcr.io/"
       artifacts:
@@ -91,7 +92,7 @@ spec:
       args:
       - "--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}"
       - "--context=dir:///repo/{{inputs.parameters.docker-context-dir}}"
-      - "--destination={{=inputs.parameters['image-registry'] + inputs.parameters['image-repo'] + join(split(inputs.parameters['dockerfile-path'], '/')[:-1], ) + ':' + inputs.parameters.revision}}"
+      - "--destination={{inputs.parameters.image-registry}}{{inputs.parameters.image-repo}}{{inputs.parameters.dockerfile-dir}}:{{inputs.parameters.revision}}"
       volumeMounts:
       - name: docker-config
         mountPath: /kaniko/.docker
@@ -120,10 +121,11 @@ spec:
       - name: resource-path
       - name: image-repo
       - name: build-revision
+      - name: dockerfile-dir
       - name: image-registry
         value: "ghcr.io/"
     container:
-      image: osoriano/deploy-steps-argocd:sha-9c772691d7978630c9981ef2683194a966d4a606
+      image: osoriano/deploy-steps-argocd:sha-d0b23bc4f0e9c136c4e75bf86798ecde13cb3bff
       args:
       - "./deploy-step-argocd.sh"
       - "{{inputs.parameters.deploy-repo}}"
@@ -136,6 +138,7 @@ spec:
       - "{{inputs.parameters.image-registry}}"
       - "{{inputs.parameters.image-repo}}"
       - "{{inputs.parameters.build-revision}}"
+      - "{{inputs.parameters.dockerfile-dir}}"
       volumeMounts:
       - name: github-key
         mountPath: /github-key

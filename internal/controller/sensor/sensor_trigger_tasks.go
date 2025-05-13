@@ -2,6 +2,7 @@ package sensor
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/jettisonproj/jettison-controller/internal/workflowtemplates"
@@ -104,6 +105,11 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 		return nil, nil, "", fmt.Errorf("failed to get initial dag tasks: %s", err)
 	}
 
+	stepsByName := make(map[string]v1alpha1base.BaseStep)
+	for i := range flowSteps {
+		stepsByName[flowSteps[i].GetStepName()] = flowSteps[i]
+	}
+
 	additionalTemplates := []workflowsv1.Template{}
 	for i := range flowSteps {
 		switch step := flowSteps[i].(type) {
@@ -184,6 +190,10 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 							Name:  "image-repo",
 							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.repo-short}}"),
 						},
+						{
+							Name:  "dockerfile-dir",
+							Value: workflowsv1.AnyStringPtr(getDockerfileDir(*step.DockerfilePath)),
+						},
 					},
 				},
 				Dependencies: step.DependsOn,
@@ -221,6 +231,11 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				dagTasks = append(dagTasks, dagTask)
 			}
 		case *v1alpha1.ArgoCDStep:
+			dockerfilePath, err := getDockerfilePathDependency(*step.StepName, stepsByName)
+			if err != nil {
+				return nil, nil, "", fmt.Errorf("error finding dockerfile dependency for step %s: %s", *step.StepName, err)
+			}
+			dockerfileDir := getDockerfileDir(dockerfilePath)
 
 			dagTask := workflowsv1.DAGTask{
 				Name: *step.StepName,
@@ -245,6 +260,10 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						{
 							Name:  "build-revision",
 							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision}}"),
+						},
+						{
+							Name:  "dockerfile-dir",
+							Value: workflowsv1.AnyStringPtr(dockerfileDir),
 						},
 					},
 				},
@@ -291,4 +310,59 @@ func getFinalDAGTask(triggerType string) workflowsv1.LifecycleHook {
 			ClusterScope: true,
 		},
 	}
+}
+
+func getDockerfilePathDependency(initialStepName string, stepsByName map[string]v1alpha1base.BaseStep) (string, error) {
+	initialStep := stepsByName[initialStepName]
+
+	dependencies := make([]string, len(initialStep.GetDependsOn()))
+	copy(dependencies, initialStep.GetDependsOn())
+
+	visited := make(map[string]bool)
+	dockerfilePath := ""
+	for len(dependencies) > 0 {
+		dependency := dependencies[0]
+		dependencies = dependencies[1:]
+
+		if !visited[dependency] {
+			visited[dependency] = true
+			switch step := stepsByName[dependency].(type) {
+			case *v1alpha1.DockerBuildTestPublishStep:
+				if dockerfilePath != "" {
+					return "", fmt.Errorf("found multiple dockerfile paths for step: %s", initialStepName)
+				}
+				dockerfilePath = *step.DockerfilePath
+			}
+			dependencies = append(dependencies, stepsByName[dependency].GetDependsOn()...)
+		}
+	}
+
+	if dockerfilePath == "" {
+		return "", fmt.Errorf("did not find dockerfile path for step: %s", initialStepName)
+	}
+
+	return dockerfilePath, nil
+}
+
+// The dockerfileDir is used as a suffix in the image repo. The full image
+// format is: <registry><repo-short><dockerfile-dir>:<revision>
+func getDockerfileDir(dockerfilePath string) string {
+	dir, file := filepath.Split(dockerfilePath)
+	// Usually, file is simply "Dockerfile", but attempt to handle other conventions
+	file = strings.ToLower(file)
+	file = strings.ReplaceAll(file, "dockerfile", "")
+	file = strings.Trim(file, " .-_")
+	if file == "" && dir == "" {
+		return ""
+	}
+	if dir == "" {
+		return "/" + file
+	}
+	if !strings.HasPrefix(dir, "/") {
+		dir = "/" + dir
+	}
+	if file == "" {
+		return strings.TrimRight(dir, "/")
+	}
+	return dir + file
 }

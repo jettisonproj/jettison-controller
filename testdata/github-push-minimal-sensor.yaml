@@ -79,6 +79,8 @@ spec:
                           value: ""
                         - name: image-repo
                           value: "{{inputs.parameters.repo-short}}"
+                        - name: dockerfile-dir
+                          value: ""
                       templateRef:
                         name: cicd-templates
                         template: docker-build-test-publish
@@ -96,6 +98,8 @@ spec:
                           value: "{{inputs.parameters.repo-short}}"
                         - name: build-revision
                           value: "{{inputs.parameters.revision}}"
+                        - name: dockerfile-dir
+                          value: ""
                       templateRef:
                         name: cicd-templates
                         template: deploy-step-argocd
@@ -114,6 +118,8 @@ spec:
                           value: "{{inputs.parameters.repo-short}}"
                         - name: build-revision
                           value: "{{inputs.parameters.revision}}"
+                        - name: dockerfile-dir
+                          value: ""
                       templateRef:
                         name: cicd-templates
                         template: deploy-step-argocd
@@ -132,6 +138,8 @@ spec:
                           value: "{{inputs.parameters.repo-short}}"
                         - name: build-revision
                           value: "{{inputs.parameters.revision}}"
+                        - name: dockerfile-dir
+                          value: ""
                       templateRef:
                         name: cicd-templates
                         template: deploy-step-argocd

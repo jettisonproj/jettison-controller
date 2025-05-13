@@ -25,7 +25,7 @@ const (
 	// Deploy Step Image for GitHub Checks
 	deployStepsGitHubCheckImage = "osoriano/deploy-steps-github-check:sha-9c772691d7978630c9981ef2683194a966d4a606"
 	// Deploy Step Image for ArgoCD Config Update
-	deployStepsArgoCDImage = "osoriano/deploy-steps-argocd:sha-9c772691d7978630c9981ef2683194a966d4a606"
+	deployStepsArgoCDImage = "osoriano/deploy-steps-argocd:sha-d0b23bc4f0e9c136c4e75bf86798ecde13cb3bff"
 )
 
 var (
@@ -182,9 +182,13 @@ var (
 				{
 					Name: "docker-context-dir",
 				},
-				// image-repo - the image repo used to publish the image to
+				// image-repo - the image repo prefix used to publish the image to
 				{
 					Name: "image-repo",
+				},
+				// dockerfile-dir - the image repo suffix used to publish the image to
+				{
+					Name: "dockerfile-dir",
 				},
 				// image-registry - the image registry used to publish the image to
 				{
@@ -210,7 +214,7 @@ var (
 			Args: []string{
 				"--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}",
 				"--context=dir:///repo/{{inputs.parameters.docker-context-dir}}",
-				"--destination={{=inputs.parameters['image-registry'] + inputs.parameters['image-repo'] + join(split(inputs.parameters['dockerfile-path'], '/')[:-1], ) + ':' + inputs.parameters.revision}}",
+				"--destination={{inputs.parameters.image-registry}}{{inputs.parameters.image-repo}}{{inputs.parameters.dockerfile-dir}}:{{inputs.parameters.revision}}",
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -267,13 +271,17 @@ var (
 				{
 					Name: "resource-path",
 				},
-				// image-repo - the target image repo which will be updated in the argo configs
+				// image-repo - the target image repo prefix which will be updated in the argo configs
 				{
 					Name: "image-repo",
 				},
 				// build-revision - the target build revision used to update the argo configs
 				{
 					Name: "build-revision",
+				},
+				// dockerfile-dir - the target image repo suffix which will be updated in the argo configs
+				{
+					Name: "dockerfile-dir",
 				},
 				// image-registry - the image registry used for updating images
 				{
@@ -296,6 +304,7 @@ var (
 				"{{inputs.parameters.image-registry}}",
 				"{{inputs.parameters.image-repo}}",
 				"{{inputs.parameters.build-revision}}",
+				"{{inputs.parameters.dockerfile-dir}}",
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
