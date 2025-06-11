@@ -104,7 +104,7 @@ spec:
                         name: cicd-templates
                         template: deploy-step-argocd
                         clusterScope: true
-                      dependencies: [docker-build-test-publish]
+                      depends: docker-build-test-publish.Succeeded
                     - name: deploy-to-staging
                       arguments:
                         parameters:
@@ -124,7 +124,7 @@ spec:
                         name: cicd-templates
                         template: deploy-step-argocd
                         clusterScope: true
-                      dependencies: [docker-build-test-publish]
+                      depends: docker-build-test-publish.Succeeded
                     - name: deploy-to-prod
                       arguments:
                         parameters:
@@ -144,7 +144,7 @@ spec:
                         name: cicd-templates
                         template: deploy-step-argocd
                         clusterScope: true
-                      dependencies: [deploy-to-staging]
+                      depends: deploy-to-staging.Succeeded
                 serviceAccountName: deploy-step-executor
                 entrypoint: main
                 arguments:

@@ -114,8 +114,7 @@ spec:
                           value: '{{inputs.parameters.revision}}'
                         - name: dockerfile-dir
                           value: "/subdir"
-                      dependencies:
-                      - docker-build-test-publish
+                      depends: docker-build-test-publish.Succeeded
                       name: deploy-to-dev
                       templateRef:
                         clusterScope: true
@@ -135,8 +134,7 @@ spec:
                           value: '{{inputs.parameters.revision}}'
                         - name: dockerfile-dir
                           value: "/subdir"
-                      dependencies:
-                      - docker-build-test-publish
+                      depends: docker-build-test-publish.Succeeded
                       name: deploy-to-staging
                       templateRef:
                         clusterScope: true
@@ -156,8 +154,7 @@ spec:
                           value: '{{inputs.parameters.revision}}'
                         - name: dockerfile-dir
                           value: "/subdir"
-                      dependencies:
-                      - deploy-to-staging
+                      depends: deploy-to-staging.Succeeded
                       name: deploy-to-prod
                       templateRef:
                         clusterScope: true

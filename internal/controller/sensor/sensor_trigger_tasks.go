@@ -136,7 +136,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						},
 					},
 				},
-				Dependencies: step.DependsOn,
+				Depends: getDepends(step.DependsOn),
 			}
 
 			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 {
@@ -196,7 +196,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						},
 					},
 				},
-				Dependencies: step.DependsOn,
+				Depends: getDepends(step.DependsOn),
 			}
 			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 {
 				dagTask.TemplateRef = &workflowsv1.TemplateRef{
@@ -272,7 +272,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					Template:     workflowtemplates.ArgoCDTemplate.Name,
 					ClusterScope: true,
 				},
-				Dependencies: step.DependsOn,
+				Depends: getDepends(step.DependsOn),
 			}
 			dagTasks = append(dagTasks, dagTask)
 		default:
@@ -367,4 +367,21 @@ func getDockerfileDir(dockerfilePath string) string {
 		return strings.TrimRight(dir, "/")
 	}
 	return dir + file
+}
+
+// Convert the "dependsOn" field set in the Flow to the "depends" field
+// set in the Workflow. See:
+// https://argo-workflows.readthedocs.io/en/latest/enhanced-depends-logic/
+func getDepends(dependsOn []string) string {
+	n := len(dependsOn)
+	if n == 0 {
+		return ""
+	}
+
+	succeededDependsOn := make([]string, n)
+	for i, d := range dependsOn {
+		succeededDependsOn[i] = fmt.Sprintf("%s.Succeeded", d)
+	}
+
+	return strings.Join(succeededDependsOn, " && ")
 }
