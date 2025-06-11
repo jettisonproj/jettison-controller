@@ -312,6 +312,8 @@ func getFinalDAGTask(triggerType string) workflowsv1.LifecycleHook {
 	}
 }
 
+// Get the dockerfile dependency for the specified step.
+// In the long term, there may be a more efficient solution
 func getDockerfilePathDependency(initialStepName string, stepsByName map[string]v1alpha1base.BaseStep) (string, error) {
 	initialStep := stepsByName[initialStepName]
 
