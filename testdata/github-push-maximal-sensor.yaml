@@ -50,6 +50,7 @@ spec:
                   - name: repo
                   - name: revision
                   - name: repo-short
+                  - name: revision-ref
                 entrypoint: main
                 hooks:
                   exit:
@@ -90,6 +91,8 @@ spec:
                           value: '{{inputs.parameters.repo}}'
                         - name: revision
                           value: '{{inputs.parameters.revision}}'
+                        - name: revision-ref
+                          value: '{{inputs.parameters.revision-ref}}'
                         - name: dockerfile-path
                           value: subdir/Dockerfile
                         - name: docker-context-dir
@@ -115,6 +118,7 @@ spec:
                         - name: dockerfile-dir
                           value: "/subdir"
                       depends: docker-build-test-publish.Succeeded
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-status}} != Skipped"
                       name: deploy-to-dev
                       templateRef:
                         clusterScope: true
@@ -135,6 +139,7 @@ spec:
                         - name: dockerfile-dir
                           value: "/subdir"
                       depends: docker-build-test-publish.Succeeded
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-status}} != Skipped"
                       name: deploy-to-staging
                       templateRef:
                         clusterScope: true
@@ -165,28 +170,42 @@ spec:
                     - name: repo
                     - name: revision
                     - name: repo-short
+                    - name: revision-ref
                   name: main
                 - container:
                     args:
-                    - --dockerfile=/repo/{{inputs.parameters.dockerfile-path}}
-                    - --context=dir:///repo/{{inputs.parameters.docker-context-dir}}
-                    - --destination={{inputs.parameters.image-registry}}{{inputs.parameters.image-repo}}{{inputs.parameters.dockerfile-dir}}:{{inputs.parameters.revision}}
-                    image: gcr.io/kaniko-project/executor:latest
+                    - commit
+                    - --repo
+                    - '{{inputs.parameters.repo}}'
+                    - --clone-path
+                    - /workspace
+                    - --revision-hash
+                    - '{{inputs.parameters.revision}}'
+                    - --revision-ref
+                    - '{{inputs.parameters.revision-ref}}'
+                    - --dockerfile
+                    - '{{inputs.parameters.dockerfile-path}}'
+                    - --docker-context-dir
+                    - '{{inputs.parameters.docker-context-dir}}'
+                    - --status-file
+                    - /kaniko/docker-build-status.txt
+                    - --image-registry
+                    - '{{inputs.parameters.image-registry}}'
+                    - --image-repo
+                    - '{{inputs.parameters.image-repo}}'
+                    - --dockerfile-dir
+                    - '{{inputs.parameters.dockerfile-dir}}'
+                    image: osoriano/deploy-steps-docker-build:sha-dc5aa6fcc454d8c5876be606e21856272484c590
                     volumeMounts:
                     - mountPath: /kaniko/.docker
                       name: docker-config
                     - mountPath: /volume-mount-path-1
                       name: volume-mount-1
                   inputs:
-                    artifacts:
-                    - git:
-                        repo: '{{inputs.parameters.repo}}'
-                        revision: '{{inputs.parameters.revision}}'
-                      name: repo-source
-                      path: /repo
                     parameters:
                     - name: repo
                     - name: revision
+                    - name: revision-ref
                     - name: dockerfile-path
                     - name: docker-context-dir
                     - name: image-repo
@@ -201,6 +220,11 @@ spec:
                   - name: volume-1
                     secret:
                       secretName: volume-secret-1
+                  outputs:
+                    parameters:
+                    - name: docker-build-status
+                      valueFrom:
+                        path: /kaniko/docker-build-status.txt
           operation: create
           parameters:
             # Set the build url in the workflow
@@ -218,6 +242,11 @@ spec:
                 dependencyName: github-event-dep
                 dataKey: body.repository.full_name
               dest: spec.arguments.parameters.2.value
+            # Set the ref
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.ref
+              dest: spec.arguments.parameters.3.value
             # Append short sha to dynamically assign workflow name <rollouts-demo-commit-2c065a>
             - src:
                 dependencyName: github-event-dep

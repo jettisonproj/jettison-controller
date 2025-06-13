@@ -134,6 +134,18 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 							Name:  "docker-context-dir",
 							Value: workflowsv1.AnyStringPtr(*step.DockerContextDir),
 						},
+						{
+							Name:  "revision-ref",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision-ref}}"),
+						},
+						{
+							Name:  "base-revision",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.base-revision}}"),
+						},
+						{
+							Name:  "base-revision-ref",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.base-revision-ref}}"),
+						},
 					},
 				},
 				Depends: getDepends(step.DependsOn),
@@ -177,6 +189,10 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						{
 							Name:  "revision",
 							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision}}"),
+						},
+						{
+							Name:  "revision-ref",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision-ref}}"),
 						},
 						{
 							Name:  "dockerfile-path",
@@ -273,6 +289,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					ClusterScope: true,
 				},
 				Depends: getDepends(step.DependsOn),
+				When:    getWhen(*step.StepName, stepsByName),
 			}
 			dagTasks = append(dagTasks, dagTask)
 		default:
@@ -367,6 +384,22 @@ func getDockerfileDir(dockerfilePath string) string {
 		return strings.TrimRight(dir, "/")
 	}
 	return dir + file
+}
+
+// Get the "when" field for the specified step.
+// In the long term, there may be a more efficient solution
+func getWhen(initialStepName string, stepsByName map[string]v1alpha1base.BaseStep) string {
+	initialStep := stepsByName[initialStepName]
+	for _, dependency := range initialStep.GetDependsOn() {
+		switch step := stepsByName[dependency].(type) {
+		case *v1alpha1.DockerBuildTestPublishStep:
+			return fmt.Sprintf(
+				"{{tasks.%s.outputs.parameters.docker-build-status}} != Skipped",
+				*step.StepName,
+			)
+		}
+	}
+	return ""
 }
 
 // Convert the "dependsOn" field set in the Flow to the "depends" field
