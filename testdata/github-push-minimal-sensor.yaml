@@ -51,6 +51,7 @@ spec:
                     - name: repo
                     - name: revision
                     - name: repo-short
+                    - name: revision-ref
                   dag:
                     tasks:
                     - name: github-check-start
@@ -73,6 +74,8 @@ spec:
                           value: "{{inputs.parameters.repo}}"
                         - name: revision
                           value: "{{inputs.parameters.revision}}"
+                        - name: revision-ref
+                          value: "{{inputs.parameters.revision-ref}}"
                         - name: dockerfile-path
                           value: "Dockerfile"
                         - name: docker-context-dir
@@ -105,6 +108,7 @@ spec:
                         template: deploy-step-argocd
                         clusterScope: true
                       depends: docker-build-test-publish.Succeeded
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
                     - name: deploy-to-staging
                       arguments:
                         parameters:
@@ -125,6 +129,7 @@ spec:
                         template: deploy-step-argocd
                         clusterScope: true
                       depends: docker-build-test-publish.Succeeded
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
                     - name: deploy-to-prod
                       arguments:
                         parameters:
@@ -152,6 +157,7 @@ spec:
                   - name: repo
                   - name: revision
                   - name: repo-short
+                  - name: revision-ref
                 activeDeadlineSeconds: 3600 # 1h for deploy pipeline
                 hooks:
                   exit: # Exit handler
@@ -186,6 +192,11 @@ spec:
                 dependencyName: github-event-dep
                 dataKey: body.repository.full_name
               dest: spec.arguments.parameters.2.value
+            # Set the revision ref
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.ref
+              dest: spec.arguments.parameters.3.value
             # Append short sha to dynamically assign workflow name <rollouts-demo-commit-2c065a>
             - src:
                 dependencyName: github-event-dep

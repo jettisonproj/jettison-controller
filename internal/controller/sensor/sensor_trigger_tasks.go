@@ -134,6 +134,18 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 							Name:  "docker-context-dir",
 							Value: workflowsv1.AnyStringPtr(*step.DockerContextDir),
 						},
+						{
+							Name:  "revision-ref",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision-ref}}"),
+						},
+						{
+							Name:  "base-revision",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.base-revision}}"),
+						},
+						{
+							Name:  "base-revision-ref",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.base-revision-ref}}"),
+						},
 					},
 				},
 				Depends: getDepends(step.DependsOn),
@@ -149,17 +161,51 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 			} else {
 				// From the Workflow, it is not possible to override the volume and
 				// volumeMounts of the WorkflowTemplate, so generate the template here
+				// This should be kept in sync with the workflowtemplates
 				// See: https://github.com/argoproj/argo-workflows/issues/6677
 				templateName := strings.ToLower(*step.StepName)
-
 				template := workflowtemplates.DockerBuildTestTemplate
 				template.Name = templateName
 
-				templateContainerCopy := *template.Container
-				template.Container = &templateContainerCopy
+				// Override (append) template volumes
+				templateVolumesCopy := make(
+					[]corev1.Volume,
+					len(template.Volumes),
+					len(template.Volumes)+len(step.Volumes),
+				)
+				copy(templateVolumesCopy, template.Volumes)
+				template.Volumes = templateVolumesCopy
 
-				template.Container.VolumeMounts = step.VolumeMounts
-				template.Volumes = step.Volumes
+				template.Volumes = append(template.Volumes, step.Volumes...)
+
+				// Copy container pointer to modify VolumeMounts
+				// The mounts should only be added to the "docker-build-diff-check-pr"
+				// container, to avoid polluting the "docker-build" container
+				templateContainerSetCopy := *template.ContainerSet
+				template.ContainerSet = &templateContainerSetCopy
+
+				templateContainersCopy := make([]workflowsv1.ContainerNode, len(template.ContainerSet.Containers))
+				copy(templateContainersCopy, template.ContainerSet.Containers)
+				template.ContainerSet.Containers = templateContainersCopy
+
+				templateContainerCopy := template.ContainerSet.Containers[0]
+				template.ContainerSet.Containers[0] = templateContainerCopy
+
+				// Override (append) volume mounts
+				volumeMountsCopy := make(
+					[]corev1.VolumeMount,
+					len(template.ContainerSet.Containers[0].VolumeMounts),
+					len(template.ContainerSet.Containers[0].VolumeMounts)+len(step.VolumeMounts),
+				)
+				copy(volumeMountsCopy, template.ContainerSet.Containers[0].VolumeMounts)
+				template.ContainerSet.Containers[0].VolumeMounts = volumeMountsCopy
+
+				template.ContainerSet.Containers[0].VolumeMounts = append(
+					template.ContainerSet.Containers[0].VolumeMounts,
+					step.VolumeMounts...,
+				)
+
+				// Add inline template
 				additionalTemplates = append(additionalTemplates, template)
 
 				dagTask.Template = templateName
@@ -177,6 +223,10 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						{
 							Name:  "revision",
 							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision}}"),
+						},
+						{
+							Name:  "revision-ref",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision-ref}}"),
 						},
 						{
 							Name:  "dockerfile-path",
@@ -208,23 +258,51 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 			} else {
 				// From the Workflow, it is not possible to override the volume and
 				// volumeMounts of the WorkflowTemplate, so generate the template here
-				// This should be kept in sync with the cicd-templates
+				// This should be kept in sync with the workflowtemplates
 				// See: https://github.com/argoproj/argo-workflows/issues/6677
 				templateName := strings.ToLower(*step.StepName)
 				template := workflowtemplates.DockerBuildTestPublishTemplate
 				template.Name = templateName
 
-				templateVolumesCopy := make([]corev1.Volume, len(template.Volumes))
+				// Override (append) template volumes
+				templateVolumesCopy := make(
+					[]corev1.Volume,
+					len(template.Volumes),
+					len(template.Volumes)+len(step.Volumes),
+				)
 				copy(templateVolumesCopy, template.Volumes)
 				template.Volumes = templateVolumesCopy
 
 				template.Volumes = append(template.Volumes, step.Volumes...)
 
-				templateContainerCopy := *template.Container
-				template.Container = &templateContainerCopy
+				// Copy container pointer to modify VolumeMounts
+				// The mounts should only be added to the "docker-build-diff-check-commit"
+				// container, to avoid polluting the "docker-build" container
+				templateContainerSetCopy := *template.ContainerSet
+				template.ContainerSet = &templateContainerSetCopy
 
-				template.Container.VolumeMounts = append(template.Container.VolumeMounts, step.VolumeMounts...)
+				templateContainersCopy := make([]workflowsv1.ContainerNode, len(template.ContainerSet.Containers))
+				copy(templateContainersCopy, template.ContainerSet.Containers)
+				template.ContainerSet.Containers = templateContainersCopy
 
+				templateContainerCopy := template.ContainerSet.Containers[0]
+				template.ContainerSet.Containers[0] = templateContainerCopy
+
+				// Override (append) volume mounts
+				volumeMountsCopy := make(
+					[]corev1.VolumeMount,
+					len(template.ContainerSet.Containers[0].VolumeMounts),
+					len(template.ContainerSet.Containers[0].VolumeMounts)+len(step.VolumeMounts),
+				)
+				copy(volumeMountsCopy, template.ContainerSet.Containers[0].VolumeMounts)
+				template.ContainerSet.Containers[0].VolumeMounts = volumeMountsCopy
+
+				template.ContainerSet.Containers[0].VolumeMounts = append(
+					template.ContainerSet.Containers[0].VolumeMounts,
+					step.VolumeMounts...,
+				)
+
+				// Add inline template
 				additionalTemplates = append(additionalTemplates, template)
 
 				dagTask.Template = templateName
@@ -273,6 +351,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					ClusterScope: true,
 				},
 				Depends: getDepends(step.DependsOn),
+				When:    getWhen(*step.StepName, stepsByName),
 			}
 			dagTasks = append(dagTasks, dagTask)
 		default:
@@ -367,6 +446,22 @@ func getDockerfileDir(dockerfilePath string) string {
 		return strings.TrimRight(dir, "/")
 	}
 	return dir + file
+}
+
+// Get the "when" field for the specified step.
+// In the long term, there may be a more efficient solution
+func getWhen(initialStepName string, stepsByName map[string]v1alpha1base.BaseStep) string {
+	initialStep := stepsByName[initialStepName]
+	for _, dependency := range initialStep.GetDependsOn() {
+		switch step := stepsByName[dependency].(type) {
+		case *v1alpha1.DockerBuildTestPublishStep:
+			return fmt.Sprintf(
+				"{{tasks.%s.outputs.parameters.docker-build-commit-status}} != Skipped",
+				*step.StepName,
+			)
+		}
+	}
+	return ""
 }
 
 // Convert the "dependsOn" field set in the Flow to the "depends" field
