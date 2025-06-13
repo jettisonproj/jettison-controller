@@ -25,7 +25,11 @@ const (
 	// Deploy Step Image for GitHub Checks
 	deployStepsGitHubCheckImage = "osoriano/deploy-steps-github-check:sha-9c772691d7978630c9981ef2683194a966d4a606"
 	// Deploy Step Image for ArgoCD Config Update
-	deployStepsArgoCDImage = "osoriano/deploy-steps-argocd:sha-d0b23bc4f0e9c136c4e75bf86798ecde13cb3bff"
+	deployStepsArgoCDImage = "osoriano/deploy-steps-argocd:sha-d1ac08b66297cfbfe024cc1bed49baff87038c56"
+	// Deploy Step Image for Docker Build Diff Check
+	deployStepsDockerBuildDiffCheckImage = "osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa"
+	// Deploy Step Image for Docker Build
+	deployStepsDockerBuildImage = "osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7"
 )
 
 var (
@@ -113,7 +117,7 @@ var (
 	}
 
 	// docker-build-test
-	// Useful for PR build. Will run the image build, but skips publishing it
+	// Useful for PR triggers. Will run the image build, but skips publishing it
 	DockerBuildTestTemplate = workflowsv1.Template{
 		Name: "docker-build-test",
 		Inputs: workflowsv1.Inputs{
@@ -135,32 +139,94 @@ var (
 				{
 					Name: "docker-context-dir",
 				},
-			},
-			Artifacts: []workflowsv1.Artifact{
+				// revision-ref - the revision ref that will be used locally
 				{
-					Name: "repo-source",
-					Path: "/repo",
-					ArtifactLocation: workflowsv1.ArtifactLocation{
-						Git: &workflowsv1.GitArtifact{
-							Repo:     "{{inputs.parameters.repo}}",
-							Revision: "{{inputs.parameters.revision}}",
-						},
-					},
+					Name: "revision-ref",
+				},
+				// base-revision - the base revision or commit sha for the change
+				{
+					Name: "base-revision",
+				},
+				// base-revision-ref - the base revision ref that will be used locally
+				{
+					Name: "base-revision-ref",
 				},
 			},
 		},
-		Container: &corev1.Container{
-			Image: "gcr.io/kaniko-project/executor:latest",
-			Args: []string{
-				"--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}",
-				"--context=dir:///repo/{{inputs.parameters.docker-context-dir}}",
-				"--no-push",
+		ContainerSet: &workflowsv1.ContainerSetTemplate{
+			Containers: []workflowsv1.ContainerNode{
+				{
+					Container: corev1.Container{
+						Name:  "docker-build-diff-check-pr",
+						Image: deployStepsDockerBuildDiffCheckImage,
+						Args: []string{
+							"./docker-build-diff-check-pr.sh",
+							"{{inputs.parameters.repo}}",
+							"/workspace",
+							"{{inputs.parameters.revision}}",
+							"{{inputs.parameters.revision-ref}}",
+							"{{inputs.parameters.base-revision}}",
+							"{{inputs.parameters.base-revision-ref}}",
+							"{{inputs.parameters.dockerfile-path}}",
+							"{{inputs.parameters.docker-context-dir}}",
+							"/workspace/docker-build-pr-status.txt",
+							"/repo",
+						},
+					},
+				},
+				{
+					Container: corev1.Container{
+						Name:  "main",
+						Image: deployStepsDockerBuildImage,
+						Args: []string{
+							"pr",
+							"--clone-path",
+							"/workspace",
+							"--dockerfile",
+							"{{inputs.parameters.dockerfile-path}}",
+							"--docker-context-dir",
+							"{{inputs.parameters.docker-context-dir}}",
+							"--status-file",
+							"/workspace/docker-build-pr-status.txt",
+						},
+					},
+					Dependencies: []string{"docker-build-diff-check-pr"},
+				},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				// Mount the shared repo workspace between the docker-build steps
+				{
+					Name:      "docker-build-pr-workspace",
+					MountPath: "/workspace",
+				},
+			},
+		},
+		Volumes: []corev1.Volume{
+			// Create a volume to share a repo workspace between the docker-build steps
+			{
+				Name: "docker-build-pr-workspace",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		// export the docker-build-pr-status to distinguish a "Skipped" docker build
+		// which can cause further steps to be skipped
+		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.docker-build-pr-status}}
+		Outputs: workflowsv1.Outputs{
+			Parameters: []workflowsv1.Parameter{
+				{
+					Name: "docker-build-pr-status",
+					ValueFrom: &workflowsv1.ValueFrom{
+						Path: "/workspace/docker-build-pr-status.txt",
+					},
+				},
 			},
 		},
 	}
 
 	// docker-build-test-publish
-	// Useful for commit build. Will run and publish the image build
+	// Useful for commit triggers. Will run and publish the image build
 	DockerBuildTestPublishTemplate = workflowsv1.Template{
 		Name: "docker-build-test-publish",
 		Inputs: workflowsv1.Inputs{
@@ -172,6 +238,10 @@ var (
 				// revision - the revision or commit sha that will be checked out
 				{
 					Name: "revision",
+				},
+				// revision-ref - the revision ref that will be used locally
+				{
+					Name: "revision-ref",
 				},
 				// dockerfile-path - the path to the Dockerfile which will be built
 				{
@@ -196,41 +266,97 @@ var (
 					Value: workflowsv1.AnyStringPtr(imageRegistry),
 				},
 			},
-			Artifacts: []workflowsv1.Artifact{
+		},
+		ContainerSet: &workflowsv1.ContainerSetTemplate{
+			Containers: []workflowsv1.ContainerNode{
 				{
-					Name: "repo-source",
-					Path: "/repo",
-					ArtifactLocation: workflowsv1.ArtifactLocation{
-						Git: &workflowsv1.GitArtifact{
-							Repo:     "{{inputs.parameters.repo}}",
-							Revision: "{{inputs.parameters.revision}}",
+					Container: corev1.Container{
+						Name:  "docker-build-diff-check-commit",
+						Image: deployStepsDockerBuildDiffCheckImage,
+						Args: []string{
+							"./docker-build-diff-check-commit.sh",
+							"{{inputs.parameters.repo}}",
+							"/workspace",
+							"{{inputs.parameters.revision}}",
+							"{{inputs.parameters.revision-ref}}",
+							"{{inputs.parameters.dockerfile-path}}",
+							"{{inputs.parameters.docker-context-dir}}",
+							"/workspace/docker-build-commit-status.txt",
+							"/repo",
 						},
 					},
 				},
-			},
-		},
-		Container: &corev1.Container{
-			Image: "gcr.io/kaniko-project/executor:latest",
-			Args: []string{
-				"--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}",
-				"--context=dir:///repo/{{inputs.parameters.docker-context-dir}}",
-				"--destination={{inputs.parameters.image-registry}}{{inputs.parameters.image-repo}}{{inputs.parameters.dockerfile-dir}}:{{inputs.parameters.revision}}",
+				{
+					Container: corev1.Container{
+						Name:  "main",
+						Image: deployStepsDockerBuildImage,
+						Args: []string{
+							"commit",
+							"--clone-path",
+							"/workspace",
+							"--revision-hash",
+							"{{inputs.parameters.revision}}",
+							"--revision-ref",
+							"{{inputs.parameters.revision-ref}}",
+							"--dockerfile",
+							"{{inputs.parameters.dockerfile-path}}",
+							"--docker-context-dir",
+							"{{inputs.parameters.docker-context-dir}}",
+							"--image-registry",
+							"{{inputs.parameters.image-registry}}",
+							"--image-repo",
+							"{{inputs.parameters.image-repo}}",
+							"--dockerfile-dir",
+							"{{inputs.parameters.dockerfile-dir}}",
+							"--status-file",
+							"/workspace/docker-build-commit-status.txt",
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							{
+								// Mount the configuration so we can push the docker image
+								Name:      "docker-config",
+								MountPath: "/kaniko/.docker",
+							},
+						},
+					},
+					Dependencies: []string{"docker-build-diff-check-commit"},
+				},
 			},
 			VolumeMounts: []corev1.VolumeMount{
+				// Mount the shared repo workspace between the docker-build steps
 				{
-					// Mount the configuration so we can push the docker image
-					Name:      "docker-config",
-					MountPath: "/kaniko/.docker",
+					Name:      "docker-build-commit-workspace",
+					MountPath: "/workspace",
 				},
 			},
 		},
 		Volumes: []corev1.Volume{
+			// Create a volume to share a repo workspace between the docker-build steps
+			{
+				Name: "docker-build-commit-workspace",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
 			// Mount the configuration so we can push the docker image
 			{
 				Name: "docker-config",
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName: "regcred",
+					},
+				},
+			},
+		},
+		// export the docker-build-commit-status to distinguish a "Skipped" docker build
+		// which can cause further steps to be skipped
+		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.docker-build-commit-status}}
+		Outputs: workflowsv1.Outputs{
+			Parameters: []workflowsv1.Parameter{
+				{
+					Name: "docker-build-commit-status",
+					ValueFrom: &workflowsv1.ValueFrom{
+						Path: "/workspace/docker-build-commit-status.txt",
 					},
 				},
 			},

@@ -17,12 +17,12 @@ import (
 // The Sensor trigger defines the actual k8s resources/workflows that will be launched
 func getSensorTriggers(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]eventsv1.Trigger, error) {
 
-	triggerParameters, err := getTriggerParameters(flowTriggers)
+	workflowParameters, triggerParameters, err := getTriggerParameters(flowTriggers)
 	if err != nil {
 		return nil, err
 	}
 
-	workflowTemplate, err := getWorkflowTemplate(flow, flowTriggers, flowSteps)
+	workflowTemplate, err := getWorkflowTemplate(flow, flowTriggers, flowSteps, workflowParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,12 @@ func getSensorTriggers(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrig
 	}, nil
 }
 
-func getWorkflowTemplate(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrigger, flowSteps []v1alpha1base.BaseStep) ([]byte, error) {
+func getWorkflowTemplate(
+	flow *v1alpha1.Flow,
+	flowTriggers []v1alpha1base.BaseTrigger,
+	flowSteps []v1alpha1base.BaseStep,
+	workflowParameters []workflowsv1.Parameter,
+) ([]byte, error) {
 	flowWorkflowTemplateDAGTasks, additionalTemplates, triggerType, err := getWorkflowTemplateDAGTasks(flowTriggers, flowSteps)
 	if err != nil {
 		return nil, err
@@ -54,7 +59,7 @@ func getWorkflowTemplate(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTr
 		{
 			Name: "main",
 			Inputs: workflowsv1.Inputs{
-				Parameters: globalWorkflowParameters,
+				Parameters: workflowParameters,
 			},
 			DAG: &workflowsv1.DAGTemplate{
 				Tasks: flowWorkflowTemplateDAGTasks,
@@ -78,7 +83,7 @@ func getWorkflowTemplate(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTr
 			Templates:  templates,
 			Entrypoint: "main",
 			Arguments: workflowsv1.Arguments{
-				Parameters: globalWorkflowParameters,
+				Parameters: workflowParameters,
 			},
 			// ServiceAccountName is the name of the ServiceAccount to run all pods of the workflow as.
 			// todo should extract out

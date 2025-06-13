@@ -56,6 +56,9 @@ spec:
                     - name: repo
                     - name: revision
                     - name: repo-short
+                    - name: revision-ref
+                    - name: base-revision
+                    - name: base-revision-ref
                   dag:
                     tasks:
                     - name: github-check-start
@@ -82,39 +85,79 @@ spec:
                           value: subdir/Dockerfile
                         - name: docker-context-dir
                           value: subdir
+                        - name: revision-ref
+                          value: '{{inputs.parameters.revision-ref}}'
+                        - name: base-revision
+                          value: '{{inputs.parameters.base-revision}}'
+                        - name: base-revision-ref
+                          value: '{{inputs.parameters.base-revision-ref}}'
                       template: dockerbuildtest
                 - name: dockerbuildtest
                   inputs:
-                    artifacts:
-                    - git:
-                        repo: '{{inputs.parameters.repo}}'
-                        revision: '{{inputs.parameters.revision}}'
-                      name: repo-source
-                      path: /repo
                     parameters:
                     - name: repo
                     - name: revision
                     - name: dockerfile-path
                     - name: docker-context-dir
-                  container:
-                    args:
-                    - --dockerfile=/repo/{{inputs.parameters.dockerfile-path}}
-                    - --context=dir:///repo/{{inputs.parameters.docker-context-dir}}
-                    - --no-push
-                    image: gcr.io/kaniko-project/executor:latest
+                    - name: revision-ref
+                    - name: base-revision
+                    - name: base-revision-ref
+                  containerSet:
+                    containers:
+                    - args:
+                      - "./docker-build-diff-check-pr.sh"
+                      - "{{inputs.parameters.repo}}"
+                      - "/workspace"
+                      - "{{inputs.parameters.revision}}"
+                      - "{{inputs.parameters.revision-ref}}"
+                      - "{{inputs.parameters.base-revision}}"
+                      - "{{inputs.parameters.base-revision-ref}}"
+                      - "{{inputs.parameters.dockerfile-path}}"
+                      - "{{inputs.parameters.docker-context-dir}}"
+                      - "/workspace/docker-build-pr-status.txt"
+                      - /repo
+                      name: "docker-build-diff-check-pr"
+                      image: osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa
+                      volumeMounts:
+                      - mountPath: /volume-mount-path-1
+                        name: volume-mount-1
+                    - args:
+                      - pr
+                      - --clone-path
+                      - /workspace
+                      - --dockerfile
+                      - '{{inputs.parameters.dockerfile-path}}'
+                      - --docker-context-dir
+                      - '{{inputs.parameters.docker-context-dir}}'
+                      - --status-file
+                      - /workspace/docker-build-pr-status.txt
+                      name: "main"
+                      image: osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7
+                      dependencies:
+                      - docker-build-diff-check-pr
                     volumeMounts:
-                    - mountPath: /volume-mount-path-1
-                      name: volume-mount-1
+                    - mountPath: /workspace
+                      name: docker-build-pr-workspace
                   volumes:
+                  - name: docker-build-pr-workspace
+                    emptyDir: {}
                   - name: volume-1
                     secret:
                       secretName: volume-secret-1
+                  outputs:
+                    parameters:
+                    - name: docker-build-pr-status
+                      valueFrom:
+                        path: /workspace/docker-build-pr-status.txt
                 entrypoint: main
                 arguments:
                   parameters:
                   - name: repo
                   - name: revision
                   - name: repo-short
+                  - name: revision-ref
+                  - name: base-revision
+                  - name: base-revision-ref
                 serviceAccountName: deploy-step-executor
                 activeDeadlineSeconds: 800
                 hooks:
@@ -150,6 +193,21 @@ spec:
                 dependencyName: github-event-dep
                 dataKey: body.pull_request.head.repo.full_name
               dest: spec.arguments.parameters.2.value
+            # Set the revision-ref
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.pull_request.head.ref
+              dest: spec.arguments.parameters.3.value
+            # Set the base-revision
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.pull_request.base.sha
+              dest: spec.arguments.parameters.4.value
+            # Set the base-revision-ref
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.pull_request.base.ref
+              dest: spec.arguments.parameters.5.value
             # Append pull request number and short sha to dynamically assign workflow name <rollouts-demo-pr-21500-2c065a>
             - src:
                 dependencyName: github-event-dep

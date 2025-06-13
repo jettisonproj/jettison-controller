@@ -56,18 +56,50 @@ spec:
       - name: revision
       - name: dockerfile-path
       - name: docker-context-dir
-      artifacts:
-      - name: repo-source
-        path: /repo
-        git:
-          repo: "{{inputs.parameters.repo}}"
-          revision: "{{inputs.parameters.revision}}"
-    container:
-      image: gcr.io/kaniko-project/executor:latest
-      args:
-      - "--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}"
-      - "--context=dir:///repo/{{inputs.parameters.docker-context-dir}}"
-      - "--no-push"
+      - name: revision-ref
+      - name: base-revision
+      - name: base-revision-ref
+    containerSet:
+      containers:
+      - name: docker-build-diff-check-pr
+        image: osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa
+        args:
+        - "./docker-build-diff-check-pr.sh"
+        - "{{inputs.parameters.repo}}"
+        - "/workspace"
+        - "{{inputs.parameters.revision}}"
+        - "{{inputs.parameters.revision-ref}}"
+        - "{{inputs.parameters.base-revision}}"
+        - "{{inputs.parameters.base-revision-ref}}"
+        - "{{inputs.parameters.dockerfile-path}}"
+        - "{{inputs.parameters.docker-context-dir}}"
+        - "/workspace/docker-build-pr-status.txt"
+        - "/repo"
+      - name: main
+        dependencies:
+        - docker-build-diff-check-pr
+        image: osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7
+        args:
+        - pr
+        - --clone-path
+        - /workspace
+        - --dockerfile
+        - "{{inputs.parameters.dockerfile-path}}"
+        - --docker-context-dir
+        - "{{inputs.parameters.docker-context-dir}}"
+        - --status-file
+        - /workspace/docker-build-pr-status.txt
+      volumeMounts:
+      - name: docker-build-pr-workspace
+        mountPath: /workspace
+    volumes:
+    - name: docker-build-pr-workspace
+      emptyDir: {}
+    outputs:
+      parameters:
+      - name: docker-build-pr-status
+        valueFrom:
+          path: /workspace/docker-build-pr-status.txt
   # docker-build-test-publish
   # Useful for commit build. Will run and publish the image build
   - name: docker-build-test-publish
@@ -75,32 +107,69 @@ spec:
       parameters:
       - name: repo
       - name: revision
+      - name: revision-ref
       - name: dockerfile-path
       - name: docker-context-dir
       - name: image-repo
       - name: dockerfile-dir
       - name: image-registry
         value: "ghcr.io/"
-      artifacts:
-      - name: repo-source
-        path: /repo
-        git:
-          repo: "{{inputs.parameters.repo}}"
-          revision: "{{inputs.parameters.revision}}"
-    container:
-      image: gcr.io/kaniko-project/executor:latest
-      args:
-      - "--dockerfile=/repo/{{inputs.parameters.dockerfile-path}}"
-      - "--context=dir:///repo/{{inputs.parameters.docker-context-dir}}"
-      - "--destination={{inputs.parameters.image-registry}}{{inputs.parameters.image-repo}}{{inputs.parameters.dockerfile-dir}}:{{inputs.parameters.revision}}"
+    containerSet:
+      containers:
+      - name: docker-build-diff-check-commit
+        image: osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa
+        args:
+        - "./docker-build-diff-check-commit.sh"
+        - "{{inputs.parameters.repo}}"
+        - "/workspace"
+        - "{{inputs.parameters.revision}}"
+        - "{{inputs.parameters.revision-ref}}"
+        - "{{inputs.parameters.dockerfile-path}}"
+        - "{{inputs.parameters.docker-context-dir}}"
+        - "/workspace/docker-build-commit-status.txt"
+        - "/repo"
+      - name: main
+        image: osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7
+        dependencies:
+        - docker-build-diff-check-commit
+        args:
+        - commit
+        - --clone-path
+        - /workspace
+        - --revision-hash
+        - "{{inputs.parameters.revision}}"
+        - --revision-ref
+        - "{{inputs.parameters.revision-ref}}"
+        - --dockerfile
+        - "{{inputs.parameters.dockerfile-path}}"
+        - --docker-context-dir
+        - "{{inputs.parameters.docker-context-dir}}"
+        - --image-registry
+        - "{{inputs.parameters.image-registry}}"
+        - --image-repo
+        - "{{inputs.parameters.image-repo}}"
+        - --dockerfile-dir
+        - "{{inputs.parameters.dockerfile-dir}}"
+        - --status-file
+        - /workspace/docker-build-commit-status.txt
+        volumeMounts:
+        - name: docker-config
+          mountPath: /kaniko/.docker
       volumeMounts:
-      - name: docker-config
-        mountPath: /kaniko/.docker
+      - name: docker-build-commit-workspace
+        mountPath: /workspace
     # Mount the configuration so we can push the image.
     volumes:
+    - name: docker-build-commit-workspace
+      emptyDir: {}
     - name: docker-config
       secret:
         secretName: regcred
+    outputs:
+      parameters:
+      - name: docker-build-commit-status
+        valueFrom:
+          path: /workspace/docker-build-commit-status.txt
   # deploy-step-argocd
   # Deploy an image revision to the resource in the specified
   # argo cd config repo
@@ -125,7 +194,7 @@ spec:
       - name: image-registry
         value: "ghcr.io/"
     container:
-      image: osoriano/deploy-steps-argocd:sha-d0b23bc4f0e9c136c4e75bf86798ecde13cb3bff
+      image: osoriano/deploy-steps-argocd:sha-d1ac08b66297cfbfe024cc1bed49baff87038c56
       args:
       - "./deploy-step-argocd.sh"
       - "{{inputs.parameters.deploy-repo}}"
