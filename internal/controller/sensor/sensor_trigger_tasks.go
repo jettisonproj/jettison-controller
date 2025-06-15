@@ -394,7 +394,7 @@ func getWhen(initialStepName string, stepsByName map[string]v1alpha1base.BaseSte
 		switch step := stepsByName[dependency].(type) {
 		case *v1alpha1.DockerBuildTestPublishStep:
 			return fmt.Sprintf(
-				"{{tasks.%s.outputs.parameters.docker-build-status}} != Skipped",
+				"{{tasks.%s.outputs.parameters.docker-build-commit-status}} != Skipped",
 				*step.StepName,
 			)
 		}
