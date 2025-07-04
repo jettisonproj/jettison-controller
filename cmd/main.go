@@ -68,6 +68,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var serverAddr string
+	var workflowMysqlAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
@@ -75,6 +76,7 @@ func main() {
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&serverAddr, "server-bind-address", ":2846", "The address the server endpoint binds to.")
+	flag.StringVar(&workflowMysqlAddr, "workflow-mysql-address", "/argo", "DSN (Data Source Name) of the workflow mysql database")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -174,10 +176,11 @@ func main() {
 	}
 
 	if err = (&webserver.FlowWebServer{
-		BindAddress: serverAddr,
-		Client:      mgr.GetClient(),
-		Cache:       mgr.GetCache(),
-		Scheme:      mgr.GetScheme(),
+		BindAddress:          serverAddr,
+		WorkflowMysqlAddress: workflowMysqlAddr,
+		Client:               mgr.GetClient(),
+		Cache:                mgr.GetCache(),
+		Scheme:               mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webserver", "webserver", "Flow")
 		os.Exit(1)

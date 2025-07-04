@@ -33,15 +33,25 @@ var (
 
 // FlowWebServer serves Flow and related objects
 type FlowWebServer struct {
-	BindAddress string
-	Client      client.Client
-	Cache       cache.Cache
-	Scheme      *runtime.Scheme
-	flowWatcher *FlowWatcher
+	BindAddress          string
+	WorkflowMysqlAddress string
+	Client               client.Client
+	Cache                cache.Cache
+	Scheme               *runtime.Scheme
+	flowWatcher          *FlowWatcher
 }
 
 // SetupWithManager sets up the webserver with the Manager.
 func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
+	mysqlWorkflows, err := getWorkloadsFromMysql(s.WorkflowMysqlAddress)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to fetch mysql workflows from %s: %s",
+			s.WorkflowMysqlAddress,
+			err,
+		)
+	}
+
 	serverListener, err := net.Listen("tcp", s.BindAddress)
 	if err != nil {
 		return fmt.Errorf("webserver failed to listen: %s", err)
@@ -64,13 +74,14 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	flowWatcher := &FlowWatcher{
-		client:     s.Client,
-		cache:      s.Cache,
-		scheme:     s.Scheme,
-		notify:     make(chan interface{}),
-		register:   make(chan *WebConn),
-		unregister: make(chan *WebConn),
-		conns:      make(map[*WebConn]bool),
+		client:         s.Client,
+		cache:          s.Cache,
+		scheme:         s.Scheme,
+		notify:         make(chan interface{}),
+		register:       make(chan *WebConn),
+		unregister:     make(chan *WebConn),
+		conns:          make(map[*WebConn]bool),
+		mysqlWorkflows: mysqlWorkflows,
 	}
 	err = flowWatcher.setupWatcher()
 	if err != nil {

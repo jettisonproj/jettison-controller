@@ -3,6 +3,7 @@ package webserver
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -45,6 +46,9 @@ type FlowWatcher struct {
 
 	// Keeps track of registered websockets
 	conns map[*WebConn]bool
+
+	// MySQL workflows are sent as initial resources
+	mysqlWorkflows []workflowsv1.Workflow
 }
 
 func (s *FlowWatcher) run() {
@@ -166,6 +170,7 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		s.unregisterConn(conn)
 		return
 	}
+	workflows.Items = slices.Concat(s.mysqlWorkflows, workflows.Items)
 	err = conn.conn.WriteJSON(workflows)
 	if err != nil {
 		connLog.Error(err, "failed to send workflows for websocket")
