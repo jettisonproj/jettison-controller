@@ -3,12 +3,12 @@ package sensor
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/jettisonproj/jettison-controller/internal/workflowtemplates"
 
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
@@ -168,15 +168,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				template.Name = templateName
 
 				// Override (append) template volumes
-				templateVolumesCopy := make(
-					[]corev1.Volume,
-					len(template.Volumes),
-					len(template.Volumes)+len(step.Volumes),
-				)
-				copy(templateVolumesCopy, template.Volumes)
-				template.Volumes = templateVolumesCopy
-
-				template.Volumes = append(template.Volumes, step.Volumes...)
+				template.Volumes = slices.Concat(template.Volumes, step.Volumes)
 
 				// Copy container pointer to modify VolumeMounts
 				// The mounts should only be added to the "docker-build-diff-check-pr"
@@ -192,17 +184,9 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				template.ContainerSet.Containers[0] = templateContainerCopy
 
 				// Override (append) volume mounts
-				volumeMountsCopy := make(
-					[]corev1.VolumeMount,
-					len(template.ContainerSet.Containers[0].VolumeMounts),
-					len(template.ContainerSet.Containers[0].VolumeMounts)+len(step.VolumeMounts),
-				)
-				copy(volumeMountsCopy, template.ContainerSet.Containers[0].VolumeMounts)
-				template.ContainerSet.Containers[0].VolumeMounts = volumeMountsCopy
-
-				template.ContainerSet.Containers[0].VolumeMounts = append(
+				template.ContainerSet.Containers[0].VolumeMounts = slices.Concat(
 					template.ContainerSet.Containers[0].VolumeMounts,
-					step.VolumeMounts...,
+					step.VolumeMounts,
 				)
 
 				// Add inline template
@@ -265,15 +249,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				template.Name = templateName
 
 				// Override (append) template volumes
-				templateVolumesCopy := make(
-					[]corev1.Volume,
-					len(template.Volumes),
-					len(template.Volumes)+len(step.Volumes),
-				)
-				copy(templateVolumesCopy, template.Volumes)
-				template.Volumes = templateVolumesCopy
-
-				template.Volumes = append(template.Volumes, step.Volumes...)
+				template.Volumes = slices.Concat(template.Volumes, step.Volumes)
 
 				// Copy container pointer to modify VolumeMounts
 				// The mounts should only be added to the "docker-build-diff-check-commit"
@@ -289,17 +265,9 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				template.ContainerSet.Containers[0] = templateContainerCopy
 
 				// Override (append) volume mounts
-				volumeMountsCopy := make(
-					[]corev1.VolumeMount,
-					len(template.ContainerSet.Containers[0].VolumeMounts),
-					len(template.ContainerSet.Containers[0].VolumeMounts)+len(step.VolumeMounts),
-				)
-				copy(volumeMountsCopy, template.ContainerSet.Containers[0].VolumeMounts)
-				template.ContainerSet.Containers[0].VolumeMounts = volumeMountsCopy
-
-				template.ContainerSet.Containers[0].VolumeMounts = append(
+				template.ContainerSet.Containers[0].VolumeMounts = slices.Concat(
 					template.ContainerSet.Containers[0].VolumeMounts,
-					step.VolumeMounts...,
+					step.VolumeMounts,
 				)
 
 				// Add inline template
