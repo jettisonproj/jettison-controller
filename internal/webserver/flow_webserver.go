@@ -39,6 +39,7 @@ type FlowWebServer struct {
 	Cache                cache.Cache
 	Scheme               *runtime.Scheme
 	flowWatcher          *FlowWatcher
+	mysqlWorkflowsMap    map[string]map[string]workflowsv1.Workflow
 }
 
 // SetupWithManager sets up the webserver with the Manager.
@@ -51,6 +52,17 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 			err,
 		)
 	}
+
+	mysqlWorkflowsMap := make(map[string]map[string]workflowsv1.Workflow)
+	for _, mysqlWorkflow := range mysqlWorkflows {
+		mysqlWorkflowsByName := mysqlWorkflowsMap[mysqlWorkflow.Namespace]
+		if mysqlWorkflowsByName == nil {
+			mysqlWorkflowsByName = make(map[string]workflowsv1.Workflow)
+			mysqlWorkflowsMap[mysqlWorkflow.Namespace] = mysqlWorkflowsByName
+		}
+		mysqlWorkflowsByName[mysqlWorkflow.Name] = mysqlWorkflow
+	}
+	s.mysqlWorkflowsMap = mysqlWorkflowsMap
 
 	serverListener, err := net.Listen("tcp", s.BindAddress)
 	if err != nil {
@@ -223,7 +235,16 @@ func (s *FlowWebServer) handleWorkflow(w http.ResponseWriter, r *http.Request) {
 	err := s.Client.Get(ctx, objectKey, workflow)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			log.FromContext(ctx).Info("workflow not found", "namespace", namespace, "name", name)
+			log.FromContext(ctx).Info(
+				"workflow not found in k8s. Checking mysql",
+				"namespace", namespace,
+				"name", name,
+			)
+			mysqlWorkflow, found := s.getMysqlWorkflow(namespace, name)
+			if found {
+				json.NewEncoder(w).Encode(mysqlWorkflow)
+				return
+			}
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, `{"error":"workflow not found"}`)
 			return
@@ -234,6 +255,15 @@ func (s *FlowWebServer) handleWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(workflow)
+}
+
+func (s *FlowWebServer) getMysqlWorkflow(namespace string, name string) (workflowsv1.Workflow, bool) {
+	mysqlWorkflowsByName, found := s.mysqlWorkflowsMap[namespace]
+	if !found {
+		return workflowsv1.Workflow{}, false
+	}
+	mysqlWorkflow, found := mysqlWorkflowsByName[name]
+	return mysqlWorkflow, found
 }
 
 // Returns a new server with sane defaults. Based on internal package:
