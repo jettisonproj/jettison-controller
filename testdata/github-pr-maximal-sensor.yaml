@@ -57,8 +57,11 @@ spec:
                     - name: revision
                     - name: repo-short
                     - name: revision-ref
+                    - name: revision-title
+                    - name: revision-author
                     - name: base-revision
                     - name: base-revision-ref
+                    - name: revision-number
                   dag:
                     tasks:
                     - name: github-check-start
@@ -156,8 +159,11 @@ spec:
                   - name: revision
                   - name: repo-short
                   - name: revision-ref
+                  - name: revision-title
+                  - name: revision-author
                   - name: base-revision
                   - name: base-revision-ref
+                  - name: revision-number
                 serviceAccountName: deploy-step-executor
                 activeDeadlineSeconds: 800
                 hooks:
@@ -178,36 +184,51 @@ spec:
                       template: deploy-step-github-check-complete
           operation: create
           parameters:
-            # Set the repo url in the workflow
+            # Parameter 0: Set the repo url in the workflow
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.pull_request.head.repo.clone_url
               dest: spec.arguments.parameters.0.value
-            # Set the revision to check out
+            # Parameter 1: Set the revision to check out
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.pull_request.head.sha
               dest: spec.arguments.parameters.1.value
-            # Set the repo full_name in the workflow
+            # Parameter 2: Set the repo full_name in the workflow
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.pull_request.head.repo.full_name
               dest: spec.arguments.parameters.2.value
-            # Set the revision-ref
+            # Parameter 3: Set the revision-ref
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.pull_request.head.ref
               dest: spec.arguments.parameters.3.value
-            # Set the base-revision
+            # Parameter 4: Set the revision-title
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.pull_request.title
+              dest: spec.arguments.parameters.4.value
+            # Parameter 5: Set the revision-author
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.pull_request.user.login
+              dest: spec.arguments.parameters.5.value
+            # Parameter 6: Set the base-revision
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.pull_request.base.sha
-              dest: spec.arguments.parameters.4.value
-            # Set the base-revision-ref
+              dest: spec.arguments.parameters.6.value
+            # Parameter 7: Set the base-revision-ref
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.pull_request.base.ref
-              dest: spec.arguments.parameters.5.value
+              dest: spec.arguments.parameters.7.value
+            # Parameter 8: Set the revision-number
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.pull_request.number
+              dest: spec.arguments.parameters.8.value
             # Append pull request number and short sha to dynamically assign workflow name <rollouts-demo-pr-21500-2c065a>
             - src:
                 dependencyName: github-event-dep

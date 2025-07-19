@@ -52,6 +52,8 @@ spec:
                     - name: revision
                     - name: repo-short
                     - name: revision-ref
+                    - name: revision-title
+                    - name: revision-author
                   dag:
                     tasks:
                     - name: github-check-start
@@ -158,6 +160,8 @@ spec:
                   - name: revision
                   - name: repo-short
                   - name: revision-ref
+                  - name: revision-title
+                  - name: revision-author
                 activeDeadlineSeconds: 3600 # 1h for deploy pipeline
                 hooks:
                   exit: # Exit handler
@@ -177,26 +181,36 @@ spec:
                       clusterScope: true
           operation: create
           parameters:
-            # Set the build url in the workflow
+            # Parameter 0: Set the build url in the workflow
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.repository.clone_url
               dest: spec.arguments.parameters.0.value
-            # Set the revision to check out
+            # Parameter 1: Set the revision to check out
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.after
               dest: spec.arguments.parameters.1.value
-            # Set the repo full_name in the workflow
+            # Parameter 2: Set the repo full_name in the workflow
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.repository.full_name
               dest: spec.arguments.parameters.2.value
-            # Set the revision ref
+            # Parameter 3: Set the revision ref
             - src:
                 dependencyName: github-event-dep
                 dataKey: body.ref
               dest: spec.arguments.parameters.3.value
+            # Parameter 4: Set the revision title
+            - src:
+                dependencyName: github-event-dep
+                dataTemplate: '{{ .Input.body.head_commit.message | splitList "\n" | first | trunc 72 }}'
+              dest: spec.arguments.parameters.4.value
+            # Parameter 5: Set the revision author
+            - src:
+                dependencyName: github-event-dep
+                dataKey: body.pusher.name
+              dest: spec.arguments.parameters.5.value
             # Append short sha to dynamically assign workflow name <rollouts-demo-commit-2c065a>
             - src:
                 dependencyName: github-event-dep
