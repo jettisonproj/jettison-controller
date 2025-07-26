@@ -285,30 +285,57 @@ func (s *FlowWatcher) setupWatcher() error {
 }
 
 func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
-	setupLog.Info("got add event", "obj", obj, "isInInitialList", isInInitialList)
-
 	switch resource := obj.(type) {
 	case *corev1.Namespace:
+		setupLog.Info(
+			"got add event for Namespace",
+			"name", resource.Name,
+			"isInInitialList", isInInitialList,
+		)
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillNamespaceSchema(resource)
 		}
 		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*resource}}
 	case *v1alpha1.Flow:
+		setupLog.Info(
+			"got add event for Flow",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+			"isInInitialList", isInInitialList,
+		)
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillFlowSchema(resource)
 		}
 		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
 	case *cdv1.Application:
+		setupLog.Info(
+			"got add event for Application",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+			"isInInitialList", isInInitialList,
+		)
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillApplicationSchema(resource)
 		}
 		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
 	case *rolloutsv1.Rollout:
+		setupLog.Info(
+			"got add event for Rollout",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+			"isInInitialList", isInInitialList,
+		)
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillRolloutSchema(resource)
 		}
 		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
 	case *workflowsv1.Workflow:
+		setupLog.Info(
+			"got add event for Rollout",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+			"isInInitialList", isInInitialList,
+		)
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillWorkflowSchema(resource)
 		}
@@ -320,30 +347,52 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 }
 
 func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
-	setupLog.Info("got update event", "oldbj", oldObj, "newObj", newObj)
-
 	switch newResource := newObj.(type) {
 	case *corev1.Namespace:
+		setupLog.Info(
+			"got update event for Namespace",
+			"name", newResource.Name,
+		)
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillNamespaceSchema(newResource)
 		}
 		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*newResource}}
 	case *v1alpha1.Flow:
+		setupLog.Info(
+			"got update event for Flow",
+			"namespace", newResource.Namespace,
+			"name", newResource.Name,
+		)
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillFlowSchema(newResource)
 		}
 		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*newResource}}
 	case *cdv1.Application:
+		setupLog.Info(
+			"got update event for Application",
+			"namespace", newResource.Namespace,
+			"name", newResource.Name,
+		)
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillApplicationSchema(newResource)
 		}
 		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*newResource}}
 	case *rolloutsv1.Rollout:
+		setupLog.Info(
+			"got update event for Rollout",
+			"namespace", newResource.Namespace,
+			"name", newResource.Name,
+		)
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillRolloutSchema(newResource)
 		}
 		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*newResource}}
 	case *workflowsv1.Workflow:
+		setupLog.Info(
+			"got update event for Workflow",
+			"namespace", newResource.Namespace,
+			"name", newResource.Name,
+		)
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillWorkflowSchema(newResource)
 		}
@@ -355,10 +404,13 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 }
 
 func (s *FlowWatcher) OnDelete(obj interface{}) {
-	setupLog.Info("got delete event", "obj", obj)
-
 	switch resource := obj.(type) {
 	case *corev1.Namespace:
+		setupLog.Info(
+			"got delete event for Namespace",
+			"name", resource.Name,
+		)
+
 		// Add a distinguishing delete key
 		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
 		annotationVal := "delete"
@@ -373,6 +425,12 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		}
 		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*resource}}
 	case *v1alpha1.Flow:
+		setupLog.Info(
+			"got delete event for Flow",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+		)
+
 		// Add a distinguishing delete key
 		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
 		annotationVal := "delete"
@@ -387,6 +445,12 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		}
 		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
 	case *cdv1.Application:
+		setupLog.Info(
+			"got delete event for Application",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+		)
+
 		// Add a distinguishing delete key
 		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
 		annotationVal := "delete"
@@ -401,6 +465,12 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		}
 		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
 	case *rolloutsv1.Rollout:
+		setupLog.Info(
+			"got delete event for Rollout",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+		)
+
 		// Add a distinguishing delete key
 		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
 		annotationVal := "delete"
@@ -415,6 +485,11 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		}
 		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
 	case *workflowsv1.Workflow:
+		setupLog.Info(
+			"got delete event for Workflow",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+		)
 		// Add a distinguishing delete key
 		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
 		annotationVal := "delete"
@@ -437,7 +512,7 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 // Backfill TypeMeta data that has been dropped
 // See: https://github.com/kubernetes/client-go/issues/541
 func (s *FlowWatcher) backfillNamespaceSchema(namespace *corev1.Namespace) {
-	setupLog.Info("backfilling namespace api version kind")
+	setupLog.Info("backfilling namespace metadata")
 	gvk, err := apiutil.GVKForObject(namespace, s.scheme)
 	if err != nil {
 		setupLog.Error(err, "unable to get namespace schema info")
@@ -451,7 +526,7 @@ func (s *FlowWatcher) backfillNamespaceSchema(namespace *corev1.Namespace) {
 // Backfill TypeMeta data that has been dropped
 // See: https://github.com/kubernetes/client-go/issues/541
 func (s *FlowWatcher) backfillFlowSchema(flow *v1alpha1.Flow) {
-	setupLog.Info("backfilling flow api version kind")
+	setupLog.Info("backfilling flow metadata")
 	gvk, err := apiutil.GVKForObject(flow, s.scheme)
 	if err != nil {
 		setupLog.Error(err, "unable to get flow schema info")
@@ -465,7 +540,7 @@ func (s *FlowWatcher) backfillFlowSchema(flow *v1alpha1.Flow) {
 // Backfill TypeMeta data that has been dropped
 // See: https://github.com/kubernetes/client-go/issues/541
 func (s *FlowWatcher) backfillApplicationSchema(application *cdv1.Application) {
-	setupLog.Info("backfilling application api version kind")
+	setupLog.Info("backfilling application metadata")
 	gvk, err := apiutil.GVKForObject(application, s.scheme)
 	if err != nil {
 		setupLog.Error(err, "unable to get application schema info")
@@ -479,7 +554,7 @@ func (s *FlowWatcher) backfillApplicationSchema(application *cdv1.Application) {
 // Backfill TypeMeta data that has been dropped
 // See: https://github.com/kubernetes/client-go/issues/541
 func (s *FlowWatcher) backfillRolloutSchema(rollout *rolloutsv1.Rollout) {
-	setupLog.Info("backfilling rollout api version kind")
+	setupLog.Info("backfilling rollout metadata")
 	gvk, err := apiutil.GVKForObject(rollout, s.scheme)
 	if err != nil {
 		setupLog.Error(err, "unable to get rollout schema info")
@@ -493,7 +568,7 @@ func (s *FlowWatcher) backfillRolloutSchema(rollout *rolloutsv1.Rollout) {
 // Backfill TypeMeta data that has been dropped
 // See: https://github.com/kubernetes/client-go/issues/541
 func (s *FlowWatcher) backfillWorkflowSchema(workflow *workflowsv1.Workflow) {
-	setupLog.Info("backfilling workflow api version kind")
+	setupLog.Info("backfilling workflow metadata")
 	gvk, err := apiutil.GVKForObject(workflow, s.scheme)
 	if err != nil {
 		setupLog.Error(err, "unable to get rollout schema info")

@@ -549,9 +549,9 @@ var (
 	}
 )
 
-func CreateWorkflowTemplates(client ctrlclient.Client) {
+func SyncWorkflowTemplates(client ctrlclient.Client) {
 	for {
-		log.Info("creating cluster workflow templates")
+		log.Info("syncing cluster workflow templates")
 		cicdTemplate := &workflowsv1.ClusterWorkflowTemplate{
 			TypeMeta:   CICDTemplate.TypeMeta,
 			ObjectMeta: CICDTemplate.ObjectMeta,
@@ -567,11 +567,11 @@ func CreateWorkflowTemplates(client ctrlclient.Client) {
 			},
 		)
 		if err != nil {
-			log.Error(err, "unable to create cluster workflow templates. Retrying...")
+			log.Error(err, "unable to sync cluster workflow templates. Retrying...")
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		log.Info("created cluster workflow templates", "operation", op)
+		log.Info("synced cluster workflow templates", "operation", op)
 		break
 	}
 }

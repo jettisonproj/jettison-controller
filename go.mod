@@ -8,6 +8,7 @@ require (
 	github.com/argoproj/argo-rollouts v1.8.2
 	github.com/argoproj/argo-workflows/v3 v3.6.0
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/google/go-github/v74 v74.0.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/stretchr/testify v1.10.0
 	k8s.io/api v0.32.3
