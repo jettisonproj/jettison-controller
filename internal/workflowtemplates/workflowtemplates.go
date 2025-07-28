@@ -16,12 +16,12 @@ import (
 const (
 	// The image registry used for pushing images. Set to blank to use docker hub
 	imageRegistry = "ghcr.io/"
-	// GitHub App ID of the argo config updater
-	githubAppId = "955485"
-	// GitHub App User ID of the argo config updater
-	githubAppUserId = "176784108"
-	// GitHub App User Name of the argo config updater
-	githubAppUserName = "argocd-config-updater[bot]"
+	// GitHub App ID of the jettisonproj app
+	githubAppId = "1682308"
+	// GitHub App User ID of the jettisonproj app
+	githubAppUserId = "223206062"
+	// GitHub App User Name of jettisonproj app
+	githubAppUserName = "jettisonproj[bot]"
 	// Deploy Step Image for GitHub Checks
 	deployStepsGitHubCheckImage = "osoriano/deploy-steps-github-check:sha-9c772691d7978630c9981ef2683194a966d4a606"
 	// Deploy Step Image for ArgoCD Config Update

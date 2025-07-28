@@ -13,7 +13,7 @@ spec:
       parameters:
       # github-app-id - app id used for updating GitHub checks
       - name: github-app-id
-        value: "955485"
+        value: "1682308"
       - name: repo-short
       # workflow-url - the url to the Argo Workflow UI of this workflow run
       - name: workflow-url
@@ -180,13 +180,13 @@ spec:
       - name: deploy-revision
       # github-app-id - app id used for updating the deploy-repo
       - name: github-app-id
-        value: "955485"
+        value: "1682308"
       # github-app-user-id - app id used for updating the deploy-repo
       - name: github-app-user-id
-        value: "176784108"
+        value: "223206062"
       # github-app-user-name - app user name for updating the deploy repo
       - name: github-app-user-name
-        value: "argocd-config-updater[bot]"
+        value: "jettisonproj[bot]"
       - name: resource-path
       - name: image-repo
       - name: build-revision
@@ -225,7 +225,7 @@ spec:
       parameters:
       # github-app-id - app id used for updating GitHub checks
       - name: github-app-id
-        value: "955485"
+        value: "1682308"
       - name: repo-short
       # workflow-url - the url to the Argo Workflow UI of this workflow run
       - name: workflow-url
