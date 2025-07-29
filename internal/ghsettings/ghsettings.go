@@ -33,7 +33,9 @@ var (
 	appIdFlag           = appId
 
 	jettisonRequiredCheck = &github.RuleStatusCheck{
-		Context:       "Jettison PR Build",
+		// The Context should be kept in sync with:
+		// deploy-steps/github-check
+		Context:       "Jettison PR Flow",
 		IntegrationID: &appIdFlag,
 	}
 
