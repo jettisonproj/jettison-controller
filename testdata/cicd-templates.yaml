@@ -21,7 +21,7 @@ spec:
       - name: event-type
       - name: revision
     container:
-      image: osoriano/deploy-steps-github-check:sha-9c772691d7978630c9981ef2683194a966d4a606
+      image: osoriano/deploy-steps-github-check:sha-4b1dfa327a3181d96a347779367cc0537703ff48
       args:
       - "./github-check-start.sh"
       - "{{inputs.parameters.github-app-id}}"
@@ -234,7 +234,7 @@ spec:
       - name: check-run-id
       - name: workflow-status
     container:
-      image: osoriano/deploy-steps-github-check:sha-9c772691d7978630c9981ef2683194a966d4a606
+      image: osoriano/deploy-steps-github-check:sha-4b1dfa327a3181d96a347779367cc0537703ff48
       args:
       - "./github-check-complete.sh"
       - "{{inputs.parameters.github-app-id}}"
