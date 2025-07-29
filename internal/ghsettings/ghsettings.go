@@ -621,5 +621,16 @@ func syncGitHubSettingsForRepo(
 		}
 	}
 
+	// For package settings, it is not available to view. See:
+	// https://github.com/orgs/community/discussions/24636
+	// Also, the edit API is missing here:
+	// https://docs.github.com/en/rest/packages/packages?apiVersion=2022-11-28#list-packages-for-an-organization
+	// containerPackageType := "container"
+	// packageListOptions := &github.PackageListOptions{
+	// 	PackageType: &containerPackageType,
+	// }
+	// packages, _, err := ghRepoClient.Organizations.ListPackages(ctx, repoOrg, packageListOptions)
+	// log.Info("packages", "repoOrg", repoOrg, "packages", fmt.Sprintf("%#v", packages))
+
 	return nil
 }
