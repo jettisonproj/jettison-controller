@@ -58,7 +58,8 @@ type DockerBuildTestStep struct {
 	BaseStepFields
 
 	// Optional path to the Dockerfile that will be used for the build.
-	// Defaults to "Dockerfile"
+	// Defaults to "Dockerfile" or "<DockerContextDir>/Dockerfile"
+	// if DockerContextDir is set
 	// +optional
 	DockerfilePath *string `json:"dockerfilePath,omitempty"`
 	// Optional Docker context directory used for the build.
@@ -71,7 +72,8 @@ type DockerBuildTestPublishStep struct {
 	BaseStepFields
 
 	// Optional path to the Dockerfile that will be used for the build.
-	// Defaults to "Dockerfile"
+	// Defaults to "Dockerfile" or "<DockerContextDir>/Dockerfile"
+	// if DockerContextDir is set
 	// +optional
 	DockerfilePath *string `json:"dockerfilePath,omitempty"`
 	// Optional Docker context directory used for the build.

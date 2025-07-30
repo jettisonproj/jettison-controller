@@ -10,8 +10,11 @@ const (
 	defaultActiveDeadlineSecondsPR   int64 = 900
 	defaultActiveDeadlineSecondsPush int64 = 3600
 	defaultBaseRef                         = "main"
-	defaultDockerfilePath                  = "Dockerfile"
 	defaultDockerContextDir                = ""
+
+	// If the dockerContextDir is specified, the default is updated to:
+	// <dockerContextDir>/Dockerfile
+	defaultDockerfilePath = "Dockerfile"
 )
 
 var (
@@ -57,24 +60,22 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 		steps[i].ApplyDefaults()
 		switch step := steps[i].(type) {
 		case *DockerBuildTestStep:
-			if step.DockerfilePath == nil {
-				step.DockerfilePath = new(string)
-				*step.DockerfilePath = defaultDockerfilePath
-			}
-
 			if step.DockerContextDir == nil {
 				step.DockerContextDir = new(string)
 				*step.DockerContextDir = defaultDockerContextDir
+			}
+
+			if step.DockerfilePath == nil {
+				step.DockerfilePath = getDefaultDockerfilePath(*step.DockerContextDir)
 			}
 		case *DockerBuildTestPublishStep:
-			if step.DockerfilePath == nil {
-				step.DockerfilePath = new(string)
-				*step.DockerfilePath = defaultDockerfilePath
-			}
-
 			if step.DockerContextDir == nil {
 				step.DockerContextDir = new(string)
 				*step.DockerContextDir = defaultDockerContextDir
+			}
+
+			if step.DockerfilePath == nil {
+				step.DockerfilePath = getDefaultDockerfilePath(*step.DockerContextDir)
 			}
 		case *ArgoCDStep:
 			if step.BaseRef == nil {
@@ -86,4 +87,16 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 		}
 	}
 	return nil
+}
+
+func getDefaultDockerfilePath(dockerContextDir string) *string {
+	dockerfilePath := new(string)
+
+	if dockerContextDir == "" {
+		*dockerfilePath = defaultDockerfilePath
+	} else {
+		*dockerfilePath = fmt.Sprintf("%s/%s", dockerContextDir, defaultDockerfilePath)
+	}
+
+	return dockerfilePath
 }
