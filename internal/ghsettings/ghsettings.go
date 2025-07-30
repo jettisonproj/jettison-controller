@@ -4,20 +4,20 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v74/github"
-	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	"github.com/jettisonproj/jettison-controller/internal/eventsources"
 )
 
 const (
 	githubKey                = "jettisonproj.private-key.pem"
 	appId              int64 = 1682308
-	gitSuffix                = ".git"
 	defaultRulesetName       = "default"
 	defaultBranch            = "~DEFAULT_BRANCH"
 )
@@ -87,19 +87,19 @@ var (
 	}
 )
 
-func SyncGitHubSettings(flowClient ctrlclient.Client) {
+func SyncGitHubSettings(resourceClient ctrlclient.Client) {
 	ctx := context.Background()
 	for {
 		log.Info("syncing GitHub settings")
 
 		flows := &v1alpha1.FlowList{}
-		err := flowClient.List(ctx, flows)
+		err := resourceClient.List(ctx, flows)
 		if err != nil {
 			log.Error(err, "failed to get flows for ghsettings. Retrying...")
 			time.Sleep(syncRetryInterval)
 			continue
 		}
-		err = syncGitHubSettingsForFlows(ctx, flows)
+		err = syncGitHubSettingsForFlows(ctx, resourceClient, flows)
 		if err != nil {
 			log.Error(err, "failed to sync ghsettings for flows. Retrying...")
 			time.Sleep(syncRetryInterval)
@@ -110,15 +110,18 @@ func SyncGitHubSettings(flowClient ctrlclient.Client) {
 	}
 }
 
-func syncGitHubSettingsForFlows(ctx context.Context, flows *v1alpha1.FlowList) error {
+func syncGitHubSettingsForFlows(
+	ctx context.Context,
+	resourceClient ctrlclient.Client,
+	flows *v1alpha1.FlowList,
+) error {
 	// First collect repo urls from flows
-	repoUrls := make(map[string]bool)
-	for _, flow := range flows.Items {
-		repoUrl, err := getRepoUrlForFlow(flow)
-		if err != nil {
-			return err
-		}
-		repoUrls[repoUrl] = true
+	repoNames, err := eventsources.GetOwnedRepositories(flows)
+
+	// Configure event sources which configure GitHub Webhooks
+	err = eventsources.SyncEventSources(ctx, resourceClient, repoNames)
+	if err != nil {
+		return fmt.Errorf("failed to sync event sources: %s", err)
 	}
 
 	// Configure the GitHub client with app auth
@@ -133,49 +136,26 @@ func syncGitHubSettingsForFlows(ctx context.Context, flows *v1alpha1.FlowList) e
 	ghClient := github.NewClient(&http.Client{Transport: ghTransport})
 
 	// Then, sync settings for each repo
-	for repoUrl := range repoUrls {
-		err := syncGitHubSettingsForRepo(ctx, ghClient, ghTransport, repoUrl)
-		if err != nil {
-			return err
+	for _, repoOrgNames := range repoNames {
+		repoOrg := repoOrgNames.Owner
+		for _, repoName := range repoOrgNames.Names {
+			err := syncGitHubSettingsForRepo(ctx, ghClient, ghTransport, repoOrg, repoName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
-}
-
-func getRepoUrlForFlow(flow v1alpha1.Flow) (string, error) {
-	flowTriggers, _, err := flow.ProcessFlow()
-	if err != nil {
-		return "", err
-	}
-
-	for _, flowTrigger := range flowTriggers {
-		switch trigger := flowTrigger.(type) {
-		case *v1alpha1.GitHubPullRequestTrigger:
-			return trigger.RepoUrl, nil
-		case *v1alpha1.GitHubPushTrigger:
-			return trigger.RepoUrl, nil
-		default:
-			return "", fmt.Errorf("unknown trigger type for flow %s: %T", flow.Name, trigger)
-		}
-	}
-	return "", fmt.Errorf("did not find trigger for flow: %s", flow.Name)
 }
 
 func syncGitHubSettingsForRepo(
 	ctx context.Context,
 	ghClient *github.Client,
 	appsTransport *ghinstallation.AppsTransport,
-	repoUrl string,
+	repoOrg string,
+	repoName string,
 ) error {
-	log.Info("syncing GitHub settings", "repoUrl", repoUrl)
-	repoUrl = strings.TrimSuffix(repoUrl, gitSuffix)
-	repoUrlParts := strings.Split(repoUrl, "/")
-	if len(repoUrlParts) < 2 {
-		return fmt.Errorf("invalid repoUrl: %s", repoUrl)
-	}
-
-	repoOrg := repoUrlParts[len(repoUrlParts)-2]
-	repoName := repoUrlParts[len(repoUrlParts)-1]
+	log.Info("syncing GitHub settings", "repoOrg", repoOrg, "repoName", repoName)
 	installation, _, err := ghClient.Apps.FindRepositoryInstallation(ctx, repoOrg, repoName)
 	if err != nil {
 		return fmt.Errorf("failed to get installation id for repo: %s/%s", repoOrg, repoName)
