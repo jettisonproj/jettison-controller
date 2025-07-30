@@ -87,7 +87,7 @@ type DockerBuildTestPublishStep struct {
 type ArgoCDStep struct {
 	BaseStepFields
 
-	// The url of the ArgoCD config repo. For example: https://github.com/osoriano/rollouts-demo-argo-configs.git
+	// The url of the ArgoCD config repo. For example: https://github.com/jettisonproj/rollouts-demo-argo-configs.git
 	// todo need to ensure this is in canonical format
 	RepoUrl string `json:"repoUrl"`
 	// The path of the k8s resources to update in the ArgoCD config repo.

@@ -72,7 +72,7 @@ func TestFlowPR(t *testing.T) {
 
 			prTrigger, ok := flowTrigger.(*v1alpha1.GitHubPullRequestTrigger)
 			require.Truef(t, ok, "failed to parse type as *GitHubPullRequestTrigger: %T", flowTrigger)
-			require.Equal(t, "https://github.com/osoriano/rollouts-demo.git", prTrigger.RepoUrl)
+			require.Equal(t, "https://github.com/jettisonproj/rollouts-demo.git", prTrigger.RepoUrl)
 			require.Equal(t, tc.expectedBaseRef, *prTrigger.BaseRef)
 			require.Equal(t, tc.expectedPullRequestEvents, prTrigger.PullRequestEvents)
 
@@ -146,7 +146,7 @@ func TestFlowPush(t *testing.T) {
 
 			pushTrigger, ok := flowTrigger.(*v1alpha1.GitHubPushTrigger)
 			require.Truef(t, ok, "failed to parse type as *GitHubPushTrigger: %T", flowTrigger)
-			require.Equal(t, "https://github.com/osoriano/rollouts-demo.git", pushTrigger.RepoUrl)
+			require.Equal(t, "https://github.com/jettisonproj/rollouts-demo.git", pushTrigger.RepoUrl)
 			require.Equal(t, tc.expectedBaseRef, *pushTrigger.BaseRef)
 
 			require.Len(t, flowSteps, 4)
@@ -170,7 +170,7 @@ func TestFlowPush(t *testing.T) {
 
 			devStep, ok := flowSteps[1].(*v1alpha1.ArgoCDStep)
 			require.Truef(t, ok, "failed to parse step 1 as *ArgoCDStep: %T", flowSteps[1])
-			require.Equal(t, "https://github.com/osoriano/rollouts-demo-argo-configs.git", devStep.RepoUrl)
+			require.Equal(t, "https://github.com/jettisonproj/rollouts-demo-argo-configs.git", devStep.RepoUrl)
 			require.Equal(t, "dev", devStep.RepoPath)
 			require.Equal(t, tc.expectedBaseRef, *devStep.BaseRef)
 
@@ -181,7 +181,7 @@ func TestFlowPush(t *testing.T) {
 
 			stagingStep, ok := flowSteps[2].(*v1alpha1.ArgoCDStep)
 			require.Truef(t, ok, "failed to parse step 2 as *ArgoCDStep: %T", flowSteps[2])
-			require.Equal(t, "https://github.com/osoriano/rollouts-demo-argo-configs.git", stagingStep.RepoUrl)
+			require.Equal(t, "https://github.com/jettisonproj/rollouts-demo-argo-configs.git", stagingStep.RepoUrl)
 			require.Equal(t, "staging", stagingStep.RepoPath)
 			require.Equal(t, tc.expectedBaseRef, *stagingStep.BaseRef)
 
@@ -192,7 +192,7 @@ func TestFlowPush(t *testing.T) {
 
 			prodStep, ok := flowSteps[3].(*v1alpha1.ArgoCDStep)
 			require.Truef(t, ok, "failed to parse step 3 as *ArgoCDStep: %T", flowSteps[3])
-			require.Equal(t, "https://github.com/osoriano/rollouts-demo-argo-configs.git", prodStep.RepoUrl)
+			require.Equal(t, "https://github.com/jettisonproj/rollouts-demo-argo-configs.git", prodStep.RepoUrl)
 			require.Equal(t, "prod", prodStep.RepoPath)
 			require.Equal(t, tc.expectedBaseRef, *prodStep.BaseRef)
 

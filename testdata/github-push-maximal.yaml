@@ -1,5 +1,5 @@
 #
-# Push flow for osoriano/rollouts-demo
+# Push flow for jettisonproj/rollouts-demo
 #
 apiVersion: workflows.jettisonproj.io/v1alpha1
 kind: Flow
@@ -10,7 +10,7 @@ spec:
   triggers:
   - triggerName: github-push
     triggerSource: GitHubPush
-    repoUrl: "https://github.com/osoriano/rollouts-demo.git"
+    repoUrl: "https://github.com/jettisonproj/rollouts-demo.git"
     baseRef: "master"
   steps:
   - stepName: docker-build-test-publish
@@ -26,21 +26,21 @@ spec:
         secretName: volume-secret-1
   - stepName: deploy-to-dev
     stepSource: ArgoCD
-    repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
+    repoUrl: "https://github.com/jettisonproj/rollouts-demo-argo-configs.git"
     repoPath: "dev"
     baseRef: "master"
     dependsOn:
     - docker-build-test-publish
   - stepName: deploy-to-staging
     stepSource: ArgoCD
-    repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
+    repoUrl: "https://github.com/jettisonproj/rollouts-demo-argo-configs.git"
     repoPath: "staging"
     baseRef: "master"
     dependsOn:
       - docker-build-test-publish
   - stepName: deploy-to-prod
     stepSource: ArgoCD
-    repoUrl: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
+    repoUrl: "https://github.com/jettisonproj/rollouts-demo-argo-configs.git"
     repoPath: "prod"
     baseRef: "master"
     dependsOn:

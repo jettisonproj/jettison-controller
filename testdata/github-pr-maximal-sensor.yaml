@@ -1,5 +1,5 @@
 #
-# PR event workflow for osoriano/rollouts-demo
+# PR event workflow for jettisonproj/rollouts-demo
 #
 # It uses the following parameters:
 # - repo - the url to the github repo
@@ -37,7 +37,7 @@ spec:
           - path: body.repository.clone_url
             type: string
             value:
-              - https://github.com/osoriano/rollouts-demo.git
+              - https://github.com/jettisonproj/rollouts-demo.git
   triggers:
     - template:
         name: flow-trigger

@@ -1,5 +1,5 @@
 #
-# PR flow for osoriano/rollouts-demo
+# PR flow for jettisonproj/rollouts-demo
 #
 apiVersion: workflows.jettisonproj.io/v1alpha1
 kind: Flow
@@ -9,7 +9,7 @@ spec:
   # activeDeadlineSeconds: 900 # Defaults to 900 (15m) for pr build
   triggers:
   - triggerSource: GitHubPullRequest
-    repoUrl: "https://github.com/osoriano/rollouts-demo.git"
+    repoUrl: "https://github.com/jettisonproj/rollouts-demo.git"
     # baseRef: "main" # Defaults to main
     # pullRequestEvents: [] # Defaults to opened, reopened, synchronize
   steps:

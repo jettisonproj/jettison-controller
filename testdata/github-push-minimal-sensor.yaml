@@ -1,5 +1,5 @@
 #
-# Commit workflow for osoriano/rollouts-demo
+# Commit workflow for jettisonproj/rollouts-demo
 #
 # This depends on the following resources:
 # - secrets/regcrd - containing a "config.json" with docker auth credentials
@@ -32,7 +32,7 @@ spec:
           - path: body.repository.clone_url
             type: string
             value:
-              - https://github.com/osoriano/rollouts-demo.git
+              - https://github.com/jettisonproj/rollouts-demo.git
   triggers:
     - template:
         name: flow-trigger
@@ -94,7 +94,7 @@ spec:
                       arguments:
                         parameters:
                         - name: deploy-repo
-                          value: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
+                          value: "https://github.com/jettisonproj/rollouts-demo-argo-configs.git"
                         - name: deploy-revision
                           value: "main"
                         - name: resource-path
@@ -115,7 +115,7 @@ spec:
                       arguments:
                         parameters:
                         - name: deploy-repo
-                          value: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
+                          value: "https://github.com/jettisonproj/rollouts-demo-argo-configs.git"
                         - name: deploy-revision
                           value: "main"
                         - name: resource-path
@@ -136,7 +136,7 @@ spec:
                       arguments:
                         parameters:
                         - name: deploy-repo
-                          value: "https://github.com/osoriano/rollouts-demo-argo-configs.git"
+                          value: "https://github.com/jettisonproj/rollouts-demo-argo-configs.git"
                         - name: deploy-revision
                           value: "main"
                         - name: resource-path

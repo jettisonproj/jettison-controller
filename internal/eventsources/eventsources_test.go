@@ -37,7 +37,7 @@ func TestGetOwnedRepositories(t *testing.T) {
 
 	expectedOwnedRepos := []eventsv1.OwnedRepositories{
 		{
-			Owner: "osoriano",
+			Owner: "jettisonproj",
 			Names: []string{"rollouts-demo"},
 		},
 	}

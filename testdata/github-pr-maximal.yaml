@@ -1,5 +1,5 @@
 #
-# PR flow for osoriano/rollouts-demo
+# PR flow for jettisonproj/rollouts-demo
 #
 apiVersion: workflows.jettisonproj.io/v1alpha1
 kind: Flow
@@ -9,7 +9,7 @@ spec:
   activeDeadlineSeconds: 800
   triggers:
   - triggerSource: GitHubPullRequest
-    repoUrl: "https://github.com/osoriano/rollouts-demo.git"
+    repoUrl: "https://github.com/jettisonproj/rollouts-demo.git"
     baseRef: "master"
     pullRequestEvents: ["opened"]
   steps:

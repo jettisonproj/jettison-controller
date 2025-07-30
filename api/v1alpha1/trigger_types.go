@@ -33,7 +33,7 @@ func (t BaseTriggerFields) GetTriggerSource() string {
 type GitHubPullRequestTrigger struct {
 	BaseTriggerFields
 
-	// The url of the GitHub repo. For example: https://github.com/osoriano/rollouts-demo.git
+	// The url of the GitHub repo. For example: https://github.com/jettisonproj/rollouts-demo.git
 	RepoUrl string `json:"repoUrl"`
 	// Optional base ref or branch that the PR will be merged to. This is typically the default
 	// branch name such as "main" or "master"
@@ -50,7 +50,7 @@ type GitHubPullRequestTrigger struct {
 type GitHubPushTrigger struct {
 	BaseTriggerFields
 
-	// The url of the GitHub repo. For example: https://github.com/osoriano/rollouts-demo.git
+	// The url of the GitHub repo. For example: https://github.com/jettisonproj/rollouts-demo.git
 	RepoUrl string `json:"repoUrl"`
 	// Optional base ref for the push event. This is typically the default
 	// branch name such as "main" or "master"
