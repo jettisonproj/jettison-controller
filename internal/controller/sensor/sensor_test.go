@@ -47,7 +47,9 @@ func TestBuildSensor(t *testing.T) {
 			flow, err := testutil.ParseYaml[v1alpha1.Flow](flowFilePath)
 			require.Nilf(t, err, "failed to parse flow: %s", flowFilePath)
 
-			sensorActual, err := sensor.BuildSensor(flow)
+			flowTriggers, flowSteps, err := flow.PreProcessFlow()
+			require.Nil(t, err, "failed to preprocess flow")
+			sensorActual, err := sensor.BuildSensor(flow, flowTriggers, flowSteps)
 			require.Nil(t, err, "failed to build sensor")
 
 			sensorFilePath := fmt.Sprintf("%s/%s", testdataDir, tc.sensorFilePath)

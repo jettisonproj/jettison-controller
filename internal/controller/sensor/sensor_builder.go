@@ -7,15 +7,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
 )
 
-// Build a Sensor for the specified Flow
-func BuildSensor(flow *v1alpha1.Flow) (*eventsv1.Sensor, error) {
-	flowTriggers, flowSteps, err := flow.ProcessFlow()
-	if err != nil {
-		return nil, fmt.Errorf("error preprocessing Flow for Sensor: %s", err)
-	}
-
+// Build a Sensor for the specified Flow triggers and steps
+func BuildSensor(
+	flow *v1alpha1.Flow,
+	flowTriggers []v1alpha1base.BaseTrigger,
+	flowSteps []v1alpha1base.BaseStep,
+) (*eventsv1.Sensor, error) {
 	sensorDependencies, err := getSensorDependencies(flowTriggers)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Sensor dependencies: %s", err)

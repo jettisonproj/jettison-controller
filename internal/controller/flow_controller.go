@@ -73,8 +73,28 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
+	// Preprocess the Flow to parse the triggers and steps
+	flowTriggers, flowSteps, err := flow.PreProcessFlow()
+	if err != nil {
+		reconcilerlog.Error(err, "error preprocessing Flow", "flow", flow)
+		condition := metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  "PreProcessFailed",
+			Message: fmt.Sprintf("Failed to preprocess Flow: %s", err),
+		}
+		if err := r.setCondition(ctx, req, flow, condition); err != nil {
+			reconcilerlog.Error(err, "failed to update Flow status after preprocess")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	// Reconcile the argocd Application(s)
+
+	// Reconcile the Sensor
 	existingSensor := &eventsv1.Sensor{}
-	err := r.Get(ctx, req.NamespacedName, existingSensor)
+	err = r.Get(ctx, req.NamespacedName, existingSensor)
 	if err != nil && !apierrors.IsNotFound(err) {
 		reconcilerlog.Error(err, "failed to check for existing Sensor")
 		// Let's return the error for the reconciliation be re-trigged again
@@ -82,7 +102,8 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	existingSensorNotFound := err != nil
-	sensor, err := sensor.BuildSensor(flow)
+
+	sensor, err := sensor.BuildSensor(flow, flowTriggers, flowSteps)
 	if err != nil {
 		reconcilerlog.Error(err, "failed to build Sensor", "flow", flow)
 		condition := metav1.Condition{
@@ -92,13 +113,13 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			Message: fmt.Sprintf("Failed to build Sensor: %s", err),
 		}
 		if err := r.setCondition(ctx, req, flow, condition); err != nil {
-			reconcilerlog.Error(err, "failed to update Flow status")
+			reconcilerlog.Error(err, "failed to update Flow status after sensor build")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 
-	// Set the ownerRef for the Deployment
+	// Set the ownerRef for the Sensor
 	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
 	if err := ctrl.SetControllerReference(flow, sensor, r.Scheme); err != nil {
 		reconcilerlog.Error(err, "unable to set Sensor owner reference")
@@ -118,7 +139,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			Message: "Successfully created sensor resource",
 		}
 		if err := r.setCondition(ctx, req, flow, condition); err != nil {
-			reconcilerlog.Error(err, "failed to update Flow status")
+			reconcilerlog.Error(err, "failed to update Flow status after sensor create")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
@@ -141,7 +162,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			Message: "Successfully updated sensor resource",
 		}
 		if err := r.setCondition(ctx, req, flow, condition); err != nil {
-			reconcilerlog.Error(err, "failed to update Flow status")
+			reconcilerlog.Error(err, "failed to update Flow status after sensor update")
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil

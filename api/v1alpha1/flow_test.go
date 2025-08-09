@@ -56,7 +56,7 @@ func TestFlowPR(t *testing.T) {
 			flow, err := testutil.ParseYaml[v1alpha1.Flow](yamlFilePath)
 			require.Nilf(t, err, "failed to parse flow: %s", tc.flowFilePath)
 
-			flowTriggers, flowSteps, err := flow.ProcessFlow()
+			flowTriggers, flowSteps, err := flow.PreProcessFlow()
 			require.Nil(t, err, "failed to process flow")
 
 			require.Equal(t, "workflows.jettisonproj.io/v1alpha1", flow.TypeMeta.APIVersion)
@@ -129,7 +129,7 @@ func TestFlowPush(t *testing.T) {
 			flow, err := testutil.ParseYaml[v1alpha1.Flow](yamlFilePath)
 			require.Nilf(t, err, "failed to parse flow: %s", tc.flowFilePath)
 
-			flowTriggers, flowSteps, err := flow.ProcessFlow()
+			flowTriggers, flowSteps, err := flow.PreProcessFlow()
 			require.Nil(t, err, "failed to process flow")
 
 			require.Equal(t, "workflows.jettisonproj.io/v1alpha1", flow.TypeMeta.APIVersion)

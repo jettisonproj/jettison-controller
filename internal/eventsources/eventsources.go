@@ -146,7 +146,7 @@ func GetOwnedRepositories(flows *v1alpha1.FlowList) ([]eventsv1.OwnedRepositorie
 }
 
 func getRepoUrlForFlow(flow v1alpha1.Flow) (string, error) {
-	flowTriggers, _, err := flow.ProcessFlow()
+	flowTriggers, _, err := flow.PreProcessFlow()
 	if err != nil {
 		return "", err
 	}
