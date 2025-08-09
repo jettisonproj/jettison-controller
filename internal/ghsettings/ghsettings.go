@@ -116,6 +116,7 @@ func syncGitHubSettingsForFlows(
 	flows *v1alpha1.FlowList,
 ) error {
 	// First collect repo urls from flows
+	// todo pass in flow triggers?
 	repoNames, err := eventsources.GetOwnedRepositories(flows)
 
 	// Configure event sources which configure GitHub Webhooks
@@ -145,6 +146,7 @@ func syncGitHubSettingsForFlows(
 			}
 		}
 	}
+
 	return nil
 }
 
