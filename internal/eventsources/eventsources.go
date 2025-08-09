@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 
 	eventsource "github.com/argoproj/argo-events/pkg/apis/eventsource"
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
@@ -16,10 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
-)
-
-const (
-	gitSuffix = ".git"
+	"github.com/jettisonproj/jettison-controller/internal/gitutil"
 )
 
 var (
@@ -114,14 +110,11 @@ func GetOwnedRepositories(flows *v1alpha1.FlowList) ([]eventsv1.OwnedRepositorie
 		if err != nil {
 			return nil, err
 		}
-		repoUrl = strings.TrimSuffix(repoUrl, gitSuffix)
-		repoUrlParts := strings.Split(repoUrl, "/")
-		if len(repoUrlParts) < 2 {
-			return nil, fmt.Errorf("invalid repoUrl: %s", repoUrl)
-		}
 
-		repoOrg := repoUrlParts[len(repoUrlParts)-2]
-		repoName := repoUrlParts[len(repoUrlParts)-1]
+		repoOrg, repoName, err := gitutil.GetRepoOrgName(repoUrl)
+		if err != nil {
+			return nil, err
+		}
 
 		// Add the repoOrg and repoName to the map
 		repoNames, repoOrgFound := repoMap[repoOrg]
