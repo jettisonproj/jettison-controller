@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	"github.com/jettisonproj/jettison-controller/internal/controller/argoapp"
 	"github.com/jettisonproj/jettison-controller/internal/controller/sensor"
 )
 
@@ -90,7 +92,112 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	// Reconcile the argocd Application(s)
+	// Reconcile the argocd AppProject and Application(s)
+	detectedDrift := false
+	projects, applications, err := argoapp.BuildArgoApps(flowSteps)
+	if err != nil {
+		reconcilerlog.Error(err, "error building Flow applications", "flow", flow)
+		condition := metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  "AppBuildFailed",
+			Message: fmt.Sprintf("Failed to build Flow applications: %s", err),
+		}
+		if err := r.setCondition(ctx, req, flow, condition); err != nil {
+			reconcilerlog.Error(err, "failed to update Flow status after application build")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	for _, project := range projects {
+		existingProject := &cdv1.AppProject{}
+		existingNamespaceName := client.ObjectKey{
+			Namespace: project.ObjectMeta.Namespace,
+			Name:      project.ObjectMeta.Name,
+		}
+
+		reconcilerlog.Info("look up project", "nsname", existingNamespaceName)
+		err = r.Get(ctx, existingNamespaceName, existingProject)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing app project")
+			// Let's return the error for the reconciliation be re-trigged again
+			return ctrl.Result{}, err
+		}
+
+		existingProjectNotFound := err != nil
+
+		// Note: The ownerRef for the AppProject cannot be set, since
+		// these are in a separate namespace
+
+		if existingProjectNotFound {
+			if err := r.Create(ctx, project); err != nil {
+				reconcilerlog.Error(err, "failed to create AppProject for Flow")
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(project.Spec, existingProject.Spec) {
+			//
+			// For discussion on the comparison here, see:
+			// https://github.com/kubernetes-sigs/kubebuilder/issues/592
+			//
+			// some field set by the operator has changed
+			existingProject.Spec = project.Spec
+			if err := r.Update(ctx, existingProject); err != nil {
+				reconcilerlog.Error(err, "failed to update AppProject for Flow")
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no AppProject drift detected for Flow")
+		}
+	}
+
+	for _, application := range applications {
+		existingApplication := &cdv1.Application{}
+		existingNamespaceName := client.ObjectKey{
+			Namespace: application.ObjectMeta.Namespace,
+			Name:      application.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingApplication)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Application")
+			// Let's return the error for the reconciliation be re-trigged again
+			return ctrl.Result{}, err
+		}
+
+		existingApplicationNotFound := err != nil
+
+		// Set the ownerRef for the Application
+		// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/owners-dependents/
+		if err := ctrl.SetControllerReference(flow, application, r.Scheme); err != nil {
+			reconcilerlog.Error(err, "unable to set Application owner reference")
+			return ctrl.Result{}, err
+		}
+
+		if existingApplicationNotFound {
+			if err := r.Create(ctx, application); err != nil {
+				reconcilerlog.Error(err, "failed to create Application for Flow")
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(application.Spec, existingApplication.Spec) {
+			//
+			// For discussion on the comparison here, see:
+			// https://github.com/kubernetes-sigs/kubebuilder/issues/592
+			//
+			// some field set by the operator has changed
+			existingApplication.Spec = application.Spec
+			if err := r.Update(ctx, existingApplication); err != nil {
+				reconcilerlog.Error(err, "failed to update Application for Flow")
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no Application drift detected for Flow")
+		}
+	}
 
 	// Reconcile the Sensor
 	existingSensor := &eventsv1.Sensor{}
@@ -109,7 +216,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		condition := metav1.Condition{
 			Type:    conditionType,
 			Status:  metav1.ConditionFalse,
-			Reason:  "SensorGenFailed",
+			Reason:  "SensorBuildFailed",
 			Message: fmt.Sprintf("Failed to build Sensor: %s", err),
 		}
 		if err := r.setCondition(ctx, req, flow, condition); err != nil {
@@ -131,44 +238,36 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			reconcilerlog.Error(err, "failed to create Sensor for Flow")
 			return ctrl.Result{}, err
 		}
-		reconcilerlog.Info("created new Sensor for Flow")
-		condition := metav1.Condition{
-			Type:    conditionType,
-			Status:  metav1.ConditionTrue,
-			Reason:  "SensorCreated",
-			Message: "Successfully created sensor resource",
-		}
-		if err := r.setCondition(ctx, req, flow, condition); err != nil {
-			reconcilerlog.Error(err, "failed to update Flow status after sensor create")
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
-	}
-
-	// For discussion on the comparison here, see:
-	// https://github.com/kubernetes-sigs/kubebuilder/issues/592
-	if !equality.Semantic.DeepDerivative(sensor.Spec, existingSensor.Spec) {
+		detectedDrift = true
+	} else if !equality.Semantic.DeepDerivative(sensor.Spec, existingSensor.Spec) {
+		//
+		// For discussion on the comparison here, see:
+		// https://github.com/kubernetes-sigs/kubebuilder/issues/592
+		//
 		// some field set by the operator has changed
 		existingSensor.Spec = sensor.Spec
 		if err := r.Update(ctx, existingSensor); err != nil {
 			reconcilerlog.Error(err, "failed to update Sensor for Flow")
 			return ctrl.Result{}, err
 		}
-		reconcilerlog.Info("updated Sensor for Flow")
+		detectedDrift = true
+	} else {
+		reconcilerlog.Info("no Sensor drift detected for Flow")
+	}
+
+	if detectedDrift {
+		reconcilerlog.Info("successfully synced Flow")
 		condition := metav1.Condition{
 			Type:    conditionType,
 			Status:  metav1.ConditionTrue,
-			Reason:  "SensorUpdated",
-			Message: "Successfully updated sensor resource",
+			Reason:  "FlowSynced",
+			Message: "Successfully synced Flow resource",
 		}
 		if err := r.setCondition(ctx, req, flow, condition); err != nil {
-			reconcilerlog.Error(err, "failed to update Flow status after sensor update")
+			reconcilerlog.Error(err, "failed to update Flow status after sync")
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
 	}
-
-	reconcilerlog.Info("reconciler called for Flow, but no drift was detected")
 
 	return ctrl.Result{}, nil
 }

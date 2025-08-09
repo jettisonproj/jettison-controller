@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: jettisonproj
+  namespace: argocd
+spec:
+  sourceRepos:
+  - "https://github.com/jettisonproj/*"
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: jettisonproj
+  sourceNamespaces:
+  - jettisonproj

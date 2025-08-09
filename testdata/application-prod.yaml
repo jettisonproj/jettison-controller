@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rollouts-demo-prod
+  namespace: jettisonproj
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  source:
+    repoURL: https://github.com/jettisonproj/rollouts-demo-argo-configs.git
+    path: prod
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jettisonproj
+  project: jettisonproj
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
