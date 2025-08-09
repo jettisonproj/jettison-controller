@@ -2,7 +2,6 @@ package sensor_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
@@ -12,6 +11,7 @@ import (
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	"github.com/jettisonproj/jettison-controller/internal/controller/sensor"
+	"github.com/jettisonproj/jettison-controller/internal/testutil"
 )
 
 const (
@@ -44,14 +44,14 @@ func TestBuildSensor(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.flowFilePath, func(t *testing.T) {
 			flowFilePath := fmt.Sprintf("%s/%s", testdataDir, tc.flowFilePath)
-			flow, err := parseYaml[v1alpha1.Flow](flowFilePath)
+			flow, err := testutil.ParseYaml[v1alpha1.Flow](flowFilePath)
 			require.Nilf(t, err, "failed to parse flow: %s", flowFilePath)
 
 			sensorActual, err := sensor.BuildSensor(flow)
 			require.Nil(t, err, "failed to build sensor")
 
 			sensorFilePath := fmt.Sprintf("%s/%s", testdataDir, tc.sensorFilePath)
-			sensorExpected, err := parseYaml[eventsv1.Sensor](sensorFilePath)
+			sensorExpected, err := testutil.ParseYaml[eventsv1.Sensor](sensorFilePath)
 			require.Nil(t, err, "failed to parse sensor")
 
 			// First compare the workflow resource ([]byte field)
@@ -78,19 +78,4 @@ func TestBuildSensor(t *testing.T) {
 			require.Equal(t, sensorExpected, sensorActual)
 		})
 	}
-}
-
-// Parse the yaml file into a struct
-func parseYaml[T any](yamlFilePath string) (*T, error) {
-	s := new(T)
-
-	b, err := os.ReadFile(yamlFilePath)
-	if err != nil {
-		return s, fmt.Errorf("failed to read file: %s", yamlFilePath)
-	}
-	err = yaml.UnmarshalStrict(b, s)
-	if err != nil {
-		return s, fmt.Errorf("parsing error: %s", err)
-	}
-	return s, nil
 }

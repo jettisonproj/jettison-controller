@@ -18,7 +18,6 @@ package e2e
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
@@ -26,6 +25,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/yaml"
+
+	"github.com/jettisonproj/jettison-controller/internal/testutil"
 )
 
 const (
@@ -40,7 +41,7 @@ func TestIntegrationWorkflowTemplates(t *testing.T) {
 
 	// get the expected workflow template from file
 	workflowTemplateFilePath := fmt.Sprintf("%s/%s", testdataDir, "cicd-templates.yaml")
-	workflowTemplateExpected, err := parseYaml[workflowsv1.ClusterWorkflowTemplate](workflowTemplateFilePath)
+	workflowTemplateExpected, err := testutil.ParseYaml[workflowsv1.ClusterWorkflowTemplate](workflowTemplateFilePath)
 	require.Nilf(t, err, "failed to parse workflow template %s", workflowTemplateFilePath)
 
 	// get actual workflow template from api
@@ -76,7 +77,7 @@ func TestIntegrationGitHubPush(t *testing.T) {
 
 	// get expected sensor from file
 	sensorFilePath := fmt.Sprintf("%s/%s", testdataDir, "github-push-minimal-sensor.yaml")
-	sensorExpected, err := parseYaml[eventsv1.Sensor](sensorFilePath)
+	sensorExpected, err := testutil.ParseYaml[eventsv1.Sensor](sensorFilePath)
 	require.Nilf(t, err, "failed to parse sensor %s", sensorFilePath)
 
 	// get actual sensor from api
@@ -119,19 +120,4 @@ func TestIntegrationGitHubPush(t *testing.T) {
 	sensorExpected.Spec.Triggers[0].Template.K8s.Source.Resource = nil
 
 	require.Equal(t, sensorExpected, sensorActual)
-}
-
-// Parse the yaml file into a struct
-func parseYaml[T any](yamlFilePath string) (*T, error) {
-	s := new(T)
-
-	b, err := os.ReadFile(yamlFilePath)
-	if err != nil {
-		return s, fmt.Errorf("failed to read file: %s", yamlFilePath)
-	}
-	err = yaml.UnmarshalStrict(b, s)
-	if err != nil {
-		return s, fmt.Errorf("parsing error: %s", err)
-	}
-	return s, nil
 }

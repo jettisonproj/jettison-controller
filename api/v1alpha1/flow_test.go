@@ -2,13 +2,12 @@ package v1alpha1_test
 
 import (
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"sigs.k8s.io/yaml"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	"github.com/jettisonproj/jettison-controller/internal/testutil"
 )
 
 const (
@@ -54,7 +53,7 @@ func TestFlowPR(t *testing.T) {
 		t.Run(tc.flowFilePath, func(t *testing.T) {
 
 			yamlFilePath := fmt.Sprintf("%s/%s", testdataDir, tc.flowFilePath)
-			flow, err := parseYaml[v1alpha1.Flow](yamlFilePath)
+			flow, err := testutil.ParseYaml[v1alpha1.Flow](yamlFilePath)
 			require.Nilf(t, err, "failed to parse flow: %s", tc.flowFilePath)
 
 			flowTriggers, flowSteps, err := flow.ProcessFlow()
@@ -127,7 +126,7 @@ func TestFlowPush(t *testing.T) {
 		t.Run(tc.flowFilePath, func(t *testing.T) {
 
 			yamlFilePath := fmt.Sprintf("%s/%s", testdataDir, tc.flowFilePath)
-			flow, err := parseYaml[v1alpha1.Flow](yamlFilePath)
+			flow, err := testutil.ParseYaml[v1alpha1.Flow](yamlFilePath)
 			require.Nilf(t, err, "failed to parse flow: %s", tc.flowFilePath)
 
 			flowTriggers, flowSteps, err := flow.ProcessFlow()
@@ -198,19 +197,4 @@ func TestFlowPush(t *testing.T) {
 
 		})
 	}
-}
-
-// Parse the yaml file into a struct
-func parseYaml[T any](yamlFilePath string) (*T, error) {
-	s := new(T)
-
-	b, err := os.ReadFile(yamlFilePath)
-	if err != nil {
-		return s, fmt.Errorf("failed to read file: %s", yamlFilePath)
-	}
-	err = yaml.UnmarshalStrict(b, s)
-	if err != nil {
-		return s, fmt.Errorf("parsing error: %s", err)
-	}
-	return s, nil
 }
