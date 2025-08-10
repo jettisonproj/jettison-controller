@@ -1,4 +1,4 @@
-package argoapp
+package appbuilder
 
 import (
 	"fmt"

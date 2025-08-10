@@ -1,4 +1,4 @@
-package sensor_test
+package sensorbuilder_test
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
-	"github.com/jettisonproj/jettison-controller/internal/controller/sensor"
+	"github.com/jettisonproj/jettison-controller/internal/controller/sensorbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/testutil"
 )
 
@@ -49,7 +49,7 @@ func TestBuildSensor(t *testing.T) {
 
 			flowTriggers, flowSteps, err := flow.PreProcessFlow()
 			require.Nil(t, err, "failed to preprocess flow")
-			sensorActual, err := sensor.BuildSensor(flow, flowTriggers, flowSteps)
+			sensorActual, err := sensorbuilder.BuildSensor(flow, flowTriggers, flowSteps)
 			require.Nil(t, err, "failed to build sensor")
 
 			sensorFilePath := fmt.Sprintf("%s/%s", testdataDir, tc.sensorFilePath)

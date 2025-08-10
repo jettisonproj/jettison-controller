@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
-	"github.com/jettisonproj/jettison-controller/internal/controller/argoapp"
-	"github.com/jettisonproj/jettison-controller/internal/controller/sensor"
+	"github.com/jettisonproj/jettison-controller/internal/controller/appbuilder"
+	"github.com/jettisonproj/jettison-controller/internal/controller/sensorbuilder"
 )
 
 const (
@@ -94,7 +94,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	// Reconcile the argocd AppProject and Application(s)
 	detectedDrift := false
-	projects, applications, err := argoapp.BuildArgoApps(flowSteps)
+	projects, applications, err := appbuilder.BuildArgoApps(flowSteps)
 	if err != nil {
 		reconcilerlog.Error(err, "error building Flow applications", "flow", flow)
 		condition := metav1.Condition{
@@ -210,7 +210,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	existingSensorNotFound := err != nil
 
-	sensor, err := sensor.BuildSensor(flow, flowTriggers, flowSteps)
+	sensor, err := sensorbuilder.BuildSensor(flow, flowTriggers, flowSteps)
 	if err != nil {
 		reconcilerlog.Error(err, "failed to build Sensor", "flow", flow)
 		condition := metav1.Condition{

@@ -1,4 +1,4 @@
-package argoapp_test
+package appbuilder_test
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
-	"github.com/jettisonproj/jettison-controller/internal/controller/argoapp"
+	"github.com/jettisonproj/jettison-controller/internal/controller/appbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/testutil"
 )
 
@@ -42,12 +42,12 @@ func TestBuildArgoApps(t *testing.T) {
 	appProject, err := testutil.ParseYaml[cdv1.AppProject](appProjectPath)
 	require.Nilf(t, err, "failed to parse app project: %s", appProjectPath)
 
-	prProjects, prApplications, err := argoapp.BuildArgoApps(prFlowSteps)
+	prProjects, prApplications, err := appbuilder.BuildArgoApps(prFlowSteps)
 	require.Nilf(t, err, "failed get applications for pr flow")
 	require.Emptyf(t, prApplications, "expected empty applications for pr flow")
 	require.Emptyf(t, prProjects, "expected empty app projects for pr flow")
 
-	pushProjects, pushApplications, err := argoapp.BuildArgoApps(pushFlowSteps)
+	pushProjects, pushApplications, err := appbuilder.BuildArgoApps(pushFlowSteps)
 	require.Nilf(t, err, "failed get applications for push flow")
 	require.Lenf(t, pushApplications, 3, "expected dev, staging, and prod applications for push flow")
 	require.Lenf(t, pushProjects, 1, "expected single app project for push flow")
