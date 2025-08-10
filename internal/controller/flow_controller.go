@@ -21,7 +21,10 @@ import (
 	"fmt"
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	eventsourcev1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	sensorsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	"github.com/bradleyfalzon/ghinstallation/v2"
+	"github.com/google/go-github/v74/github"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,8 +34,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
 	"github.com/jettisonproj/jettison-controller/internal/controller/appbuilder"
+	"github.com/jettisonproj/jettison-controller/internal/controller/eventsourcebuilder"
+	"github.com/jettisonproj/jettison-controller/internal/controller/ghsettings"
 	"github.com/jettisonproj/jettison-controller/internal/controller/sensorbuilder"
+	"github.com/jettisonproj/jettison-controller/internal/gitutil"
 )
 
 const (
@@ -42,7 +49,18 @@ const (
 // FlowReconciler reconciles a Flow object
 type FlowReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme          *runtime.Scheme
+	GitHubTransport *ghinstallation.AppsTransport
+	GitHubClient    *github.Client
+
+	// Multiple Flows can share an AppProject
+	// Keep track of synced AppProject names to avoid unnecessary updates
+	SyncedProjects map[string]bool
+
+	// Multiple Flows can share repos which are propagated to shared resources
+	// e.g. EventSource and GitHub Settings
+	// Keep track of synced repoOrg/repoName to avoid unnecessary updates
+	SyncedRepos map[string]map[string]bool
 }
 
 // +kubebuilder:rbac:groups=workflows.jettisonproj.io,resources=flows,verbs=get;list;watch;create;update;patch;delete
@@ -111,13 +129,18 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	for _, project := range projects {
+
+		projectName := project.ObjectMeta.Name
+		if r.SyncedProjects[projectName] {
+			continue
+		}
+
 		existingProject := &cdv1.AppProject{}
 		existingNamespaceName := client.ObjectKey{
 			Namespace: project.ObjectMeta.Namespace,
-			Name:      project.ObjectMeta.Name,
+			Name:      projectName,
 		}
 
-		reconcilerlog.Info("look up project", "nsname", existingNamespaceName)
 		err = r.Get(ctx, existingNamespaceName, existingProject)
 		if err != nil && !apierrors.IsNotFound(err) {
 			reconcilerlog.Error(err, "failed to check for existing app project")
@@ -151,6 +174,8 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		} else {
 			reconcilerlog.Info("no AppProject drift detected for Flow")
 		}
+
+		r.SyncedProjects[projectName] = true
 	}
 
 	for _, application := range applications {
@@ -200,7 +225,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Reconcile the Sensor
-	existingSensor := &eventsv1.Sensor{}
+	existingSensor := &sensorsv1.Sensor{}
 	err = r.Get(ctx, req.NamespacedName, existingSensor)
 	if err != nil && !apierrors.IsNotFound(err) {
 		reconcilerlog.Error(err, "failed to check for existing Sensor")
@@ -255,6 +280,84 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		reconcilerlog.Info("no Sensor drift detected for Flow")
 	}
 
+	// Reconcile the EventSource
+	repoOrg, repoName, err := getTriggerRepoName(flow.Name, flowTriggers)
+	if err != nil {
+		reconcilerlog.Error(err, "failed to get repo name for EventSource", "flow", flow)
+		condition := metav1.Condition{
+			Type:    conditionType,
+			Status:  metav1.ConditionFalse,
+			Reason:  "EventSourceFailed",
+			Message: fmt.Sprintf("Failed to get repo name for EventSource: %s", err),
+		}
+		if err := r.setCondition(ctx, req, flow, condition); err != nil {
+			reconcilerlog.Error(err, "failed to update Flow status after event source repo name")
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	syncedRepoNames, foundSyncedRepoOrg := r.SyncedRepos[repoOrg]
+	if !foundSyncedRepoOrg || !syncedRepoNames[repoName] {
+
+		eventSource := eventsourcebuilder.BuildEventSource(repoOrg, repoName)
+		existingEventSource := &eventsourcev1.EventSource{}
+		existingNamespaceName := client.ObjectKey{
+			Namespace: eventSource.ObjectMeta.Namespace,
+			Name:      eventSource.ObjectMeta.Name,
+		}
+		err = r.Get(ctx, existingNamespaceName, existingEventSource)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing event source")
+			// Let's return the error for the reconciliation be re-trigged again
+			return ctrl.Result{}, err
+		}
+
+		existingEventSourceNotFound := err != nil
+
+		// Note: The ownerRef for the EventSource cannot be set, since
+		// these are in a separate namespace
+
+		if existingEventSourceNotFound {
+			if err := r.Create(ctx, eventSource); err != nil {
+				reconcilerlog.Error(err, "failed to create EventSource for Flow")
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			mergedOwnedRepos, needsUpdate := mergeOwnedRepos(eventSource, repoOrg, repoName)
+			if needsUpdate {
+				eventSource.Spec.Github[eventsourcebuilder.EventSourceSectionName] = mergedOwnedRepos
+				if err := r.Update(ctx, existingEventSource); err != nil {
+					reconcilerlog.Error(err, "failed to update EventSource for Flow")
+					return ctrl.Result{}, err
+				}
+				detectedDrift = true
+			} else {
+				reconcilerlog.Info("no EventSource drift detected for Flow")
+			}
+		}
+
+		// Reconcile GitHub Settings
+		err := ghsettings.SyncGitHubSettingsForRepo(
+			ctx,
+			r.GitHubTransport,
+			r.GitHubClient,
+			repoOrg,
+			repoName,
+		)
+		if err != nil {
+			reconcilerlog.Error(err, "failed to sync GitHub settings for Flow")
+			return ctrl.Result{}, err
+		}
+
+		if !foundSyncedRepoOrg {
+			syncedRepoNames = make(map[string]bool)
+			r.SyncedRepos[repoOrg] = syncedRepoNames
+		}
+		syncedRepoNames[repoName] = true
+	}
+
 	if detectedDrift {
 		reconcilerlog.Info("successfully synced Flow")
 		condition := metav1.Condition{
@@ -274,9 +377,68 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FlowReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// todo could consider adding additional child objects (e.g. application)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Flow{}).
-		Owns(&eventsv1.Sensor{}).
+		Owns(&sensorsv1.Sensor{}).
 		Named("flow").
 		Complete(r)
+}
+
+func getTriggerRepoName(
+	flowName string,
+	flowTriggers []v1alpha1base.BaseTrigger,
+) (string, string, error) {
+
+	triggerRepoUrl, err := getTriggerRepoUrl(flowName, flowTriggers)
+	if err != nil {
+		return "", "", err
+	}
+	return gitutil.GetRepoOrgName(triggerRepoUrl)
+}
+
+func getTriggerRepoUrl(
+	flowName string,
+	flowTriggers []v1alpha1base.BaseTrigger,
+) (string, error) {
+	for _, flowTrigger := range flowTriggers {
+		switch trigger := flowTrigger.(type) {
+		case *v1alpha1.GitHubPullRequestTrigger:
+			return trigger.RepoUrl, nil
+		case *v1alpha1.GitHubPushTrigger:
+			return trigger.RepoUrl, nil
+		default:
+			return "", fmt.Errorf("unknown trigger type for flow %s: %T", flowName, trigger)
+		}
+	}
+	return "", fmt.Errorf("did not find trigger for flow: %s", flowName)
+}
+
+func mergeOwnedRepos(
+	eventSource *eventsourcev1.EventSource,
+	repoOrg string,
+	repoName string,
+) (eventsourcev1.GithubEventSource, bool) {
+
+	githubEventSource := eventSource.Spec.Github[eventsourcebuilder.EventSourceSectionName]
+	ownedRepos := githubEventSource.Repositories
+
+	for i := range ownedRepos {
+		if ownedRepos[i].Owner == repoOrg {
+			for j := range ownedRepos[i].Names {
+				if ownedRepos[i].Names[j] == repoName {
+					return githubEventSource, false
+				}
+			}
+			ownedRepos[i].Names = append(ownedRepos[i].Names, repoName)
+			return githubEventSource, true
+		}
+	}
+
+	ownedRepos = append(ownedRepos, eventsourcev1.OwnedRepositories{
+		Owner: repoOrg,
+		Names: []string{repoName},
+	})
+	githubEventSource.Repositories = ownedRepos
+	return githubEventSource, true
 }

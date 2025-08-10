@@ -42,7 +42,7 @@ import (
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	"github.com/jettisonproj/jettison-controller/internal/controller"
-	"github.com/jettisonproj/jettison-controller/internal/ghsettings"
+	"github.com/jettisonproj/jettison-controller/internal/controller/ghsettings"
 	"github.com/jettisonproj/jettison-controller/internal/webserver"
 	"github.com/jettisonproj/jettison-controller/internal/workflowtemplates"
 	// +kubebuilder:scaffold:imports
@@ -160,9 +160,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	githubTransport, githubClient, err := ghsettings.GetGitHubClient()
+	if err != nil {
+		setupLog.Error(err, "unable to create GitHub client")
+		os.Exit(1)
+	}
+
 	if err = (&controller.FlowReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		GitHubTransport: githubTransport,
+		GitHubClient:    githubClient,
+		SyncedProjects:  make(map[string]bool),
+		SyncedRepos:     make(map[string]map[string]bool),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Flow")
 		os.Exit(1)
@@ -190,7 +200,6 @@ func main() {
 	}
 
 	go workflowtemplates.SyncWorkflowTemplates(mgr.GetClient())
-	go ghsettings.SyncGitHubSettings(mgr.GetClient())
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

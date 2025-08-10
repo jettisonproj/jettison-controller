@@ -9,10 +9,6 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v74/github"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-
-	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
-	"github.com/jettisonproj/jettison-controller/internal/eventsources"
 )
 
 const (
@@ -87,73 +83,25 @@ var (
 	}
 )
 
-func SyncGitHubSettings(resourceClient ctrlclient.Client) {
-	ctx := context.Background()
-	for {
-		log.Info("syncing GitHub settings")
-
-		flows := &v1alpha1.FlowList{}
-		err := resourceClient.List(ctx, flows)
-		if err != nil {
-			log.Error(err, "failed to get flows for ghsettings. Retrying...")
-			time.Sleep(syncRetryInterval)
-			continue
-		}
-		err = syncGitHubSettingsForFlows(ctx, resourceClient, flows)
-		if err != nil {
-			log.Error(err, "failed to sync ghsettings for flows. Retrying...")
-			time.Sleep(syncRetryInterval)
-			continue
-		}
-		log.Info("synced GitHub settings")
-		break
-	}
-}
-
-func syncGitHubSettingsForFlows(
-	ctx context.Context,
-	resourceClient ctrlclient.Client,
-	flows *v1alpha1.FlowList,
-) error {
-	// First collect repo urls from flows
-	// todo pass in flow triggers?
-	repoNames, err := eventsources.GetOwnedRepositories(flows)
-
-	// Configure event sources which configure GitHub Webhooks
-	err = eventsources.SyncEventSources(ctx, resourceClient, repoNames)
-	if err != nil {
-		return fmt.Errorf("failed to sync event sources: %s", err)
-	}
-
-	// Configure the GitHub client with app auth
+// Configure the GitHub client with app auth
+func GetGitHubClient() (*ghinstallation.AppsTransport, *github.Client, error) {
 	ghTransport, err := ghinstallation.NewAppsTransportKeyFromFile(
 		http.DefaultTransport,
 		appId,
 		githubKey,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to get GitHub client transport: %s", err)
+		return nil, nil, fmt.Errorf("failed to get GitHub client transport: %s", err)
 	}
+
 	ghClient := github.NewClient(&http.Client{Transport: ghTransport})
-
-	// Then, sync settings for each repo
-	for _, repoOrgNames := range repoNames {
-		repoOrg := repoOrgNames.Owner
-		for _, repoName := range repoOrgNames.Names {
-			err := syncGitHubSettingsForRepo(ctx, ghClient, ghTransport, repoOrg, repoName)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return ghTransport, ghClient, nil
 }
 
-func syncGitHubSettingsForRepo(
+func SyncGitHubSettingsForRepo(
 	ctx context.Context,
-	ghClient *github.Client,
 	appsTransport *ghinstallation.AppsTransport,
+	ghClient *github.Client,
 	repoOrg string,
 	repoName string,
 ) error {
