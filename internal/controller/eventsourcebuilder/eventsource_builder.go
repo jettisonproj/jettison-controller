@@ -1,28 +1,22 @@
-package eventsources
+package eventsourcebuilder
 
 import (
-	"context"
-	"fmt"
-	"maps"
-	"slices"
-
 	eventsource "github.com/argoproj/argo-events/pkg/apis/eventsource"
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
-	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
-	"github.com/jettisonproj/jettison-controller/internal/gitutil"
+const (
+	eventSourceNamespace   = "argo-events"
+	eventSourceName        = "github"
+	EventSourceSectionName = "ghwebhook"
 )
 
 var (
-	log = ctrl.Log.WithName("eventsources")
-
-	eventSourceNamespace = "argo-events"
-	eventSourceName      = "github"
+	log = ctrl.Log.WithName("eventsourcebuilder")
 
 	githubEventSource = eventsv1.GithubEventSource{
 		// GitHub will send events to following port and endpoint
@@ -89,108 +83,39 @@ var (
 			Service: &eventsv1.Service{
 				Ports: []corev1.ServicePort{
 					{
-						Name:       "ghwebhook",
+						Name:       EventSourceSectionName,
 						Port:       12000,
 						TargetPort: intstr.FromInt(12000),
 					},
 				},
 			},
 			Github: map[string]eventsv1.GithubEventSource{
-				"ghwebhook": githubEventSource,
+				EventSourceSectionName: githubEventSource,
 			},
 		},
 	}
 )
 
-func GetOwnedRepositories(flows *v1alpha1.FlowList) ([]eventsv1.OwnedRepositories, error) {
-	repoMap := make(map[string]map[string]bool, len(flows.Items))
-	for _, flow := range flows.Items {
-		// Get repoOrg and repoName for the Flow
-		repoUrl, err := getRepoUrlForFlow(flow)
-		if err != nil {
-			return nil, err
-		}
-
-		repoOrg, repoName, err := gitutil.GetRepoOrgName(repoUrl)
-		if err != nil {
-			return nil, err
-		}
-
-		// Add the repoOrg and repoName to the map
-		repoNames, repoOrgFound := repoMap[repoOrg]
-		if !repoOrgFound {
-			repoNames = make(map[string]bool, len(flows.Items))
-			repoMap[repoOrg] = repoNames
-		}
-		repoNames[repoName] = true
-	}
-
-	// Return a sorted result for deterministic comparisons
-	repoOrgs := slices.Sorted(maps.Keys(repoMap))
-	ownedRepositories := make([]eventsv1.OwnedRepositories, 0, len(repoOrgs))
-	for _, repoOrg := range repoOrgs {
-		repoNames := slices.Sorted(maps.Keys(repoMap[repoOrg]))
-		ownedRepositories = append(ownedRepositories, eventsv1.OwnedRepositories{
-			Owner: repoOrg,
-			Names: repoNames,
-		})
-	}
-	return ownedRepositories, nil
-}
-
-func getRepoUrlForFlow(flow v1alpha1.Flow) (string, error) {
-	flowTriggers, _, err := flow.PreProcessFlow()
-	if err != nil {
-		return "", err
-	}
-
-	for _, flowTrigger := range flowTriggers {
-		switch trigger := flowTrigger.(type) {
-		case *v1alpha1.GitHubPullRequestTrigger:
-			return trigger.RepoUrl, nil
-		case *v1alpha1.GitHubPushTrigger:
-			return trigger.RepoUrl, nil
-		default:
-			return "", fmt.Errorf("unknown trigger type for flow %s: %T", flow.Name, trigger)
-		}
-	}
-	return "", fmt.Errorf("did not find trigger for flow: %s", flow.Name)
-}
-
-func SyncEventSources(
-	ctx context.Context,
-	resourceClient client.Client,
-	repoNames []eventsv1.OwnedRepositories,
-) error {
-	log.Info("syncing event source")
-	eventSourceWithRepos := &eventsv1.EventSource{
+func BuildEventSource(repoOrg string, repoName string) *eventsv1.EventSource {
+	return &eventsv1.EventSource{
 		TypeMeta:   eventSource.TypeMeta,
 		ObjectMeta: eventSource.ObjectMeta,
+		Spec:       getEventSourceSpecWithRepos(repoOrg, repoName),
 	}
-
-	op, err := ctrl.CreateOrUpdate(
-		ctx,
-		resourceClient,
-		eventSourceWithRepos,
-		func() error {
-			eventSourceWithRepos.Spec = getEventSourceSpecWithRepos(repoNames)
-			return nil
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("error updating event source: %s", err)
-	}
-	log.Info("synced event source", "operation", op)
-	return nil
 }
 
-func getEventSourceSpecWithRepos(repoNames []eventsv1.OwnedRepositories) eventsv1.EventSourceSpec {
+func getEventSourceSpecWithRepos(repoOrg string, repoName string) eventsv1.EventSourceSpec {
 	githubEventSourceWithRepos := githubEventSource
-	githubEventSourceWithRepos.Repositories = repoNames
+	githubEventSourceWithRepos.Repositories = []eventsv1.OwnedRepositories{
+		{
+			Owner: repoOrg,
+			Names: []string{repoName},
+		},
+	}
 
 	eventSourceSpecWithRepos := eventSource.Spec
 	eventSourceSpecWithRepos.Github = map[string]eventsv1.GithubEventSource{
-		"ghwebhook": githubEventSourceWithRepos,
+		EventSourceSectionName: githubEventSourceWithRepos,
 	}
 
 	return eventSourceSpecWithRepos

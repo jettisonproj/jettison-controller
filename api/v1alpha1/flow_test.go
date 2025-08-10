@@ -194,7 +194,6 @@ func TestFlowPush(t *testing.T) {
 			require.Equal(t, "https://github.com/jettisonproj/rollouts-demo-argo-configs.git", prodStep.RepoUrl)
 			require.Equal(t, "prod", prodStep.RepoPath)
 			require.Equal(t, tc.expectedBaseRef, *prodStep.BaseRef)
-
 		})
 	}
 }
