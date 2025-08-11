@@ -23,13 +23,13 @@ const (
 	// GitHub App User Name of jettisonproj app
 	githubAppUserName = "jettisonproj[bot]"
 	// Deploy Step Image for GitHub Checks
-	deployStepsGitHubCheckImage = "osoriano/deploy-steps-github-check:sha-4b1dfa327a3181d96a347779367cc0537703ff48"
+	deployStepsGitHubCheckImage = "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
 	// Deploy Step Image for ArgoCD Config Update
-	deployStepsArgoCDImage = "osoriano/deploy-steps-argocd:sha-d1ac08b66297cfbfe024cc1bed49baff87038c56"
+	deployStepsArgoCDImage = "ghcr.io/jettisonproj/deploy-steps/argocd:179d002db6731fa68a193f839416ee671083717e"
 	// Deploy Step Image for Docker Build Diff Check
-	deployStepsDockerBuildDiffCheckImage = "osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa"
+	deployStepsDockerBuildDiffCheckImage = "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
 	// Deploy Step Image for Docker Build
-	deployStepsDockerBuildImage = "osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7"
+	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:da9f01d7adad4beb879ba3f50c3d7791ebf902b7"
 )
 
 var (

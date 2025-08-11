@@ -188,7 +188,7 @@ spec:
                       - "{{inputs.parameters.docker-context-dir}}"
                       - "/workspace/docker-build-commit-status.txt"
                       - "/repo"
-                      image: "osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa"
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
                       name: "docker-build-diff-check-commit"
                       volumeMounts:
                       - mountPath: /volume-mount-path-1
@@ -213,7 +213,7 @@ spec:
                       - '{{inputs.parameters.dockerfile-dir}}'
                       - --status-file
                       - /workspace/docker-build-commit-status.txt
-                      image: osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:da9f01d7adad4beb879ba3f50c3d7791ebf902b7"
                       name: main
                       dependencies:
                       - "docker-build-diff-check-commit"

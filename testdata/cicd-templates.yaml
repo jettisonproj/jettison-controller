@@ -21,7 +21,7 @@ spec:
       - name: event-type
       - name: revision
     container:
-      image: osoriano/deploy-steps-github-check:sha-4b1dfa327a3181d96a347779367cc0537703ff48
+      image: "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
       args:
       - "./github-check-start.sh"
       - "{{inputs.parameters.github-app-id}}"
@@ -62,7 +62,7 @@ spec:
     containerSet:
       containers:
       - name: docker-build-diff-check-pr
-        image: osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
         args:
         - "./docker-build-diff-check-pr.sh"
         - "{{inputs.parameters.repo}}"
@@ -78,7 +78,7 @@ spec:
       - name: main
         dependencies:
         - docker-build-diff-check-pr
-        image: osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:da9f01d7adad4beb879ba3f50c3d7791ebf902b7"
         args:
         - pr
         - --clone-path
@@ -117,7 +117,7 @@ spec:
     containerSet:
       containers:
       - name: docker-build-diff-check-commit
-        image: osoriano/deploy-steps-docker-build-diff-check:sha-cbdac825820d1a749e0496cd5975b575df639cfa
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
         args:
         - "./docker-build-diff-check-commit.sh"
         - "{{inputs.parameters.repo}}"
@@ -129,7 +129,7 @@ spec:
         - "/workspace/docker-build-commit-status.txt"
         - "/repo"
       - name: main
-        image: osoriano/deploy-steps-docker-build:sha-330b7f3ace39fe2a6be0039d9c11ae3435cdadb7
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:da9f01d7adad4beb879ba3f50c3d7791ebf902b7"
         dependencies:
         - docker-build-diff-check-commit
         args:
@@ -194,7 +194,7 @@ spec:
       - name: image-registry
         value: "ghcr.io/"
     container:
-      image: osoriano/deploy-steps-argocd:sha-d1ac08b66297cfbfe024cc1bed49baff87038c56
+      image: "ghcr.io/jettisonproj/deploy-steps/argocd:179d002db6731fa68a193f839416ee671083717e"
       args:
       - "./deploy-step-argocd.sh"
       - "{{inputs.parameters.deploy-repo}}"
@@ -234,7 +234,7 @@ spec:
       - name: check-run-id
       - name: workflow-status
     container:
-      image: osoriano/deploy-steps-github-check:sha-4b1dfa327a3181d96a347779367cc0537703ff48
+      image: "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
       args:
       - "./github-check-complete.sh"
       - "{{inputs.parameters.github-app-id}}"
