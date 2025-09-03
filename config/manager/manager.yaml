@@ -66,6 +66,10 @@ spec:
           - "--workflow-mysql-address=root:root@tcp(mysql.mysql:3306)/argo"
         image: controller:latest
         name: manager
+        ports:
+        - containerPort: 2846
+          name: http
+          protocol: TCP
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
