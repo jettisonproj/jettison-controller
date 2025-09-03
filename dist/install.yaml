@@ -432,6 +432,7 @@ spec:
         - --metrics-bind-address=:8443
         - --leader-elect
         - --health-probe-bind-address=:8081
+        - --workflow-mysql-address=root:root@tcp(mysql.mysql:3306)/argo
         command:
         - /manager
         image: ghcr.io/jettisonproj/jettison-controller:latest
