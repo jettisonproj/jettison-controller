@@ -413,7 +413,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: osoriano/jettison-controller:01439b5d1588bbf98f6933870b9cdd6ea743d633
+        image: ghcr.io/jettisonproj/jettison-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz
