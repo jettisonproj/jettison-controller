@@ -255,8 +255,20 @@ metadata:
   name: jettison-controller-manager-role
 rules:
 - apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - argoproj.io
   resources:
+  - applications
+  - appprojects
+  - clusterworkflowtemplates
+  - eventsources
   - sensors
   verbs:
   - create
@@ -265,6 +277,15 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  - workflows
+  verbs:
+  - get
+  - list
   - watch
 - apiGroups:
   - workflows.jettisonproj.io
