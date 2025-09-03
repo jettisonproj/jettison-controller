@@ -1,5 +1,5 @@
 # Adds namespace to all resources.
-namespace: jettison-controller-system
+namespace: jettisonproj
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named

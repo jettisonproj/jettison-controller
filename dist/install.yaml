@@ -5,7 +5,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
     control-plane: controller-manager
-  name: jettison-controller-system
+  name: jettisonproj
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -156,7 +156,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
   name: jettison-controller-controller-manager
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -165,7 +165,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
   name: jettison-controller-leader-election-role
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 rules:
 - apiGroups:
   - ""
@@ -328,7 +328,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
   name: jettison-controller-leader-election-rolebinding
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -336,7 +336,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: jettison-controller-controller-manager
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -352,7 +352,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: jettison-controller-controller-manager
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -365,7 +365,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: jettison-controller-controller-manager
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 ---
 apiVersion: v1
 kind: Service
@@ -375,7 +375,7 @@ metadata:
     app.kubernetes.io/name: jettison-controller
     control-plane: controller-manager
   name: jettison-controller-controller-manager-metrics-service
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 spec:
   ports:
   - name: https
@@ -393,7 +393,7 @@ metadata:
     app.kubernetes.io/name: jettison-controller
     control-plane: controller-manager
   name: jettison-controller-controller-manager
-  namespace: jettison-controller-system
+  namespace: jettisonproj
 spec:
   replicas: 1
   selector:
