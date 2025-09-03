@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	githubKey                = "jettisonproj.private-key.pem"
+	githubKey                = "/github-key/private-key.pem"
 	appId              int64 = 1682308
 	defaultRulesetName       = "default"
 	defaultBranch            = "~DEFAULT_BRANCH"
