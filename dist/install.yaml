@@ -155,7 +155,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
-  name: jettison-controller-controller-manager
+  name: jettison-controller-manager
   namespace: jettisonproj
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -164,7 +164,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
-  name: jettison-controller-leader-election-role
+  name: jettison-leader-election-role
   namespace: jettisonproj
 rules:
 - apiGroups:
@@ -205,7 +205,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
-  name: jettison-controller-flow-editor-role
+  name: jettison-flow-editor-role
 rules:
 - apiGroups:
   - workflows.jettisonproj.io
@@ -232,7 +232,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
-  name: jettison-controller-flow-viewer-role
+  name: jettison-flow-viewer-role
 rules:
 - apiGroups:
   - workflows.jettisonproj.io
@@ -252,7 +252,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: jettison-controller-manager-role
+  name: jettison-manager-role
 rules:
 - apiGroups:
   - ""
@@ -317,7 +317,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: jettison-controller-metrics-auth-role
+  name: jettison-metrics-auth-role
 rules:
 - apiGroups:
   - authentication.k8s.io
@@ -335,7 +335,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: jettison-controller-metrics-reader
+  name: jettison-metrics-reader
 rules:
 - nonResourceURLs:
   - /metrics
@@ -348,15 +348,15 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
-  name: jettison-controller-leader-election-rolebinding
+  name: jettison-leader-election-rolebinding
   namespace: jettisonproj
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: jettison-controller-leader-election-role
+  name: jettison-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: jettison-controller-controller-manager
+  name: jettison-controller-manager
   namespace: jettisonproj
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -365,27 +365,27 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
-  name: jettison-controller-manager-rolebinding
+  name: jettison-manager-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: jettison-controller-manager-role
+  name: jettison-manager-role
 subjects:
 - kind: ServiceAccount
-  name: jettison-controller-controller-manager
+  name: jettison-controller-manager
   namespace: jettisonproj
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: jettison-controller-metrics-auth-rolebinding
+  name: jettison-metrics-auth-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: jettison-controller-metrics-auth-role
+  name: jettison-metrics-auth-role
 subjects:
 - kind: ServiceAccount
-  name: jettison-controller-controller-manager
+  name: jettison-controller-manager
   namespace: jettisonproj
 ---
 apiVersion: v1
@@ -395,7 +395,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
     control-plane: controller-manager
-  name: jettison-controller-controller-manager-metrics-service
+  name: jettison-controller-manager-metrics-service
   namespace: jettisonproj
 spec:
   ports:
@@ -413,7 +413,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
     control-plane: controller-manager
-  name: jettison-controller-controller-manager
+  name: jettison-controller-manager
   namespace: jettisonproj
 spec:
   replicas: 1
@@ -466,7 +466,7 @@ spec:
           name: github-key
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: jettison-controller-controller-manager
+      serviceAccountName: jettison-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
       - name: github-key
