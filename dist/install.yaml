@@ -393,6 +393,24 @@ kind: Service
 metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/name: jettison-api
+    control-plane: controller-manager
+  name: jettison-api-service
+  namespace: jettisonproj
+spec:
+  ports:
+  - name: http
+    port: 2846
+    protocol: TCP
+    targetPort: 2846
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
     control-plane: controller-manager
   name: jettison-controller-manager-metrics-service
