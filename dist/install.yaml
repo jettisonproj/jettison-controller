@@ -486,8 +486,6 @@ spec:
         volumeMounts:
         - mountPath: /github-key
           name: github-key
-      securityContext:
-        runAsNonRoot: true
       serviceAccountName: jettison-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
