@@ -12,7 +12,6 @@ import (
 )
 
 const (
-	githubKey                = "/github-key/private-key.pem"
 	appId              int64 = 1682308
 	defaultRulesetName       = "default"
 	defaultBranch            = "~DEFAULT_BRANCH"
@@ -84,7 +83,7 @@ var (
 )
 
 // Configure the GitHub client with app auth
-func GetGitHubClient() (*ghinstallation.AppsTransport, *github.Client, error) {
+func GetGitHubClient(githubKey string) (*ghinstallation.AppsTransport, *github.Client, error) {
 	ghTransport, err := ghinstallation.NewAppsTransportKeyFromFile(
 		http.DefaultTransport,
 		appId,

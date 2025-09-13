@@ -72,6 +72,7 @@ func main() {
 	var probeAddr string
 	var serverAddr string
 	var workflowMysqlAddr string
+	var githubKey string
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
@@ -80,6 +81,7 @@ func main() {
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&serverAddr, "server-bind-address", ":2846", "The address the server endpoint binds to.")
 	flag.StringVar(&workflowMysqlAddr, "workflow-mysql-address", "/argo", "DSN (Data Source Name) of the workflow mysql database")
+	flag.StringVar(&githubKey, "github-key", "/github-key/private-key.pem", "Path to the GitHub App key")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -160,7 +162,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	githubTransport, githubClient, err := ghsettings.GetGitHubClient()
+	githubTransport, githubClient, err := ghsettings.GetGitHubClient(githubKey)
 	if err != nil {
 		setupLog.Error(err, "unable to create GitHub client")
 		os.Exit(1)
