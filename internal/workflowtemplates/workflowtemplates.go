@@ -25,7 +25,7 @@ const (
 	// Deploy Step Image for GitHub Checks
 	deployStepsGitHubCheckImage = "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
 	// Deploy Step Image for ArgoCD Config Update
-	deployStepsArgoCDImage = "ghcr.io/jettisonproj/deploy-steps/argocd:179d002db6731fa68a193f839416ee671083717e"
+	deployStepsArgoCDImage = "ghcr.io/jettisonproj/deploy-steps/argocd:0195085946aaf06cb84b2b34f2185f0e2f8de163"
 	// Deploy Step Image for Docker Build Diff Check
 	deployStepsDockerBuildDiffCheckImage = "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
 	// Deploy Step Image for Docker Build
@@ -414,6 +414,14 @@ var (
 					Name:  "image-registry",
 					Value: workflowsv1.AnyStringPtr(imageRegistry),
 				},
+				// argocd-app-namespace - the ArgoCD application namespace
+				{
+					Name: "argocd-app-namespace",
+				},
+				// argocd-app-name - the ArgoCD application name
+				{
+					Name: "argocd-app-name",
+				},
 			},
 		},
 		Container: &corev1.Container{
@@ -431,6 +439,8 @@ var (
 				"{{inputs.parameters.image-repo}}",
 				"{{inputs.parameters.build-revision}}",
 				"{{inputs.parameters.dockerfile-dir}}",
+				"{{inputs.parameters.argocd-app-namespace}}",
+				"{{inputs.parameters.argocd-app-name}}",
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{

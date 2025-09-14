@@ -119,6 +119,10 @@ spec:
                           value: '{{inputs.parameters.revision}}'
                         - name: dockerfile-dir
                           value: "/subdir"
+                        - name: argocd-app-namespace
+                          value: "jettisonproj"
+                        - name: argocd-app-name
+                          value: "rollouts-demo-dev"
                       depends: docker-build-test-publish.Succeeded
                       when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
                       name: deploy-to-dev
@@ -140,6 +144,10 @@ spec:
                           value: '{{inputs.parameters.revision}}'
                         - name: dockerfile-dir
                           value: "/subdir"
+                        - name: argocd-app-namespace
+                          value: "jettisonproj"
+                        - name: argocd-app-name
+                          value: "rollouts-demo-staging"
                       depends: docker-build-test-publish.Succeeded
                       when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
                       name: deploy-to-staging
@@ -161,6 +169,10 @@ spec:
                           value: '{{inputs.parameters.revision}}'
                         - name: dockerfile-dir
                           value: "/subdir"
+                        - name: argocd-app-namespace
+                          value: "jettisonproj"
+                        - name: argocd-app-name
+                          value: "rollouts-demo-prod"
                       depends: deploy-to-staging.Succeeded
                       name: deploy-to-prod
                       templateRef:

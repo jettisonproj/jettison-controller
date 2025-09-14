@@ -105,6 +105,10 @@ spec:
                           value: "{{inputs.parameters.revision}}"
                         - name: dockerfile-dir
                           value: ""
+                        - name: argocd-app-namespace
+                          value: "jettisonproj"
+                        - name: argocd-app-name
+                          value: "rollouts-demo-dev"
                       templateRef:
                         name: cicd-templates
                         template: deploy-step-argocd
@@ -126,6 +130,10 @@ spec:
                           value: "{{inputs.parameters.revision}}"
                         - name: dockerfile-dir
                           value: ""
+                        - name: argocd-app-namespace
+                          value: "jettisonproj"
+                        - name: argocd-app-name
+                          value: "rollouts-demo-staging"
                       templateRef:
                         name: cicd-templates
                         template: deploy-step-argocd
@@ -147,6 +155,10 @@ spec:
                           value: "{{inputs.parameters.revision}}"
                         - name: dockerfile-dir
                           value: ""
+                        - name: argocd-app-namespace
+                          value: "jettisonproj"
+                        - name: argocd-app-name
+                          value: "rollouts-demo-prod"
                       templateRef:
                         name: cicd-templates
                         template: deploy-step-argocd

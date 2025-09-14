@@ -193,8 +193,10 @@ spec:
       - name: dockerfile-dir
       - name: image-registry
         value: "ghcr.io/"
+      - name: argocd-app-namespace
+      - name: argocd-app-name
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/argocd:179d002db6731fa68a193f839416ee671083717e"
+      image: "ghcr.io/jettisonproj/deploy-steps/argocd:0195085946aaf06cb84b2b34f2185f0e2f8de163"
       args:
       - "./deploy-step-argocd.sh"
       - "{{inputs.parameters.deploy-repo}}"
@@ -208,6 +210,8 @@ spec:
       - "{{inputs.parameters.image-repo}}"
       - "{{inputs.parameters.build-revision}}"
       - "{{inputs.parameters.dockerfile-dir}}"
+      - "{{inputs.parameters.argocd-app-namespace}}"
+      - "{{inputs.parameters.argocd-app-name}}"
       volumeMounts:
       - name: github-key
         mountPath: /github-key

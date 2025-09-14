@@ -12,6 +12,8 @@ import (
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
+	"github.com/jettisonproj/jettison-controller/internal/controller/appbuilder"
+	"github.com/jettisonproj/jettison-controller/internal/gitutil"
 )
 
 const (
@@ -283,6 +285,13 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 			}
 			dockerfileDir := getDockerfileDir(dockerfilePath)
 
+			repoOrg, repoName, err := gitutil.GetRepoOrgName(step.RepoUrl)
+			if err != nil {
+				return nil, nil, "", fmt.Errorf("error parsing argocd step repo url %s: %s", step.RepoUrl, err)
+			}
+
+			argocdAppName := appbuilder.GetAppName(repoName, step.RepoPath)
+
 			dagTask := workflowsv1.DAGTask{
 				Name: *step.StepName,
 				Arguments: workflowsv1.Arguments{
@@ -310,6 +319,15 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						{
 							Name:  "dockerfile-dir",
 							Value: workflowsv1.AnyStringPtr(dockerfileDir),
+						},
+						{
+							Name: "argocd-app-namespace",
+							// The repo org and application namespace match
+							Value: workflowsv1.AnyStringPtr(repoOrg),
+						},
+						{
+							Name:  "argocd-app-name",
+							Value: workflowsv1.AnyStringPtr(argocdAppName),
 						},
 					},
 				},

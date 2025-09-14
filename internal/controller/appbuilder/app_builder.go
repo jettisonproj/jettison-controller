@@ -83,7 +83,7 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 				projects = append(projects, project)
 			}
 
-			appName := getAppName(repoName, step.RepoPath)
+			appName := GetAppName(repoName, step.RepoPath)
 
 			if !appNames[appName] {
 				appNames[appName] = true
@@ -119,7 +119,7 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 	return projects, applications, nil
 }
 
-func getAppName(repoName string, repoPath string) string {
+func GetAppName(repoName string, repoPath string) string {
 	return fmt.Sprintf(
 		"%s-%s",
 		strings.TrimSuffix(repoName, configRepoSuffix),
