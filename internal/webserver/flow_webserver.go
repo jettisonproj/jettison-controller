@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -21,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	"github.com/jettisonproj/jettison-controller/internal/webserver/argosync"
 )
 
 var (
@@ -35,16 +38,20 @@ var (
 type FlowWebServer struct {
 	BindAddress          string
 	WorkflowMysqlAddress string
+	ArgoCDKey            string
 	Client               client.Client
 	Cache                cache.Cache
 	Scheme               *runtime.Scheme
 	flowWatcher          *FlowWatcher
 	mysqlWorkflowsMap    map[string]map[string]workflowsv1.Workflow
+	syncClient           *argosync.SyncClient
 }
 
 // SetupWithManager sets up the webserver with the Manager.
 func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
-	mysqlWorkflows, err := getWorkloadsFromMysql(s.WorkflowMysqlAddress)
+
+	// Load the workflows from mysql for historical runs
+	mysqlWorkflows, err := getWorkflowsFromMysql(s.WorkflowMysqlAddress)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to fetch mysql workflows from %s: %s",
@@ -64,18 +71,33 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	s.mysqlWorkflowsMap = mysqlWorkflowsMap
 
+	// Load the argocd key
+	argocdCredBytes, err := os.ReadFile(s.ArgoCDKey)
+	if err != nil {
+		return fmt.Errorf("failed to read ArgoCD key: %s", err)
+	}
+	s.syncClient, err = argosync.NewSyncClient(strings.TrimSpace(string(argocdCredBytes)))
+	if err != nil {
+		return fmt.Errorf("failed to create ArgoCD sync client: %s", err)
+	}
+
+	// Set up server
 	serverListener, err := net.Listen("tcp", s.BindAddress)
 	if err != nil {
 		return fmt.Errorf("webserver failed to listen: %s", err)
 	}
 
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("GET /ws", s.handleWebsocket)
 	mux.HandleFunc("GET /api/v1/namespaces/{name}", s.handleNamespace)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/flows/{name}", s.handleFlow)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/applications/{name}", s.handleApplication)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/rollouts/{name}", s.handleRollout)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/workflows/{name}", s.handleWorkflow)
+
+	mux.HandleFunc("POST /api/v1/namespaces/{namespace}/applications/{name}/sync", s.syncApplication)
+
 	err = mgr.Add(&manager.Server{
 		Name:     "jettison server",
 		Server:   newServer(mux),
@@ -85,6 +107,7 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 		return fmt.Errorf("failed to add webserver to manager: %s", err)
 	}
 
+	// Set up watcher to send updates
 	flowWatcher := &FlowWatcher{
 		client:         s.Client,
 		cache:          s.Cache,
@@ -264,6 +287,44 @@ func (s *FlowWebServer) getMysqlWorkflow(namespace string, name string) (workflo
 	}
 	mysqlWorkflow, found := mysqlWorkflowsByName[name]
 	return mysqlWorkflow, found
+}
+
+// There are many ways to sync an ArgoCD application.
+// Ultimately, the top level "operation" field needs to be updated.
+// Here are some ways it could be achieved:
+//
+//  1. Using the ArgoCD API sync api: /api/v1/applications/{name}/sync
+//     This requires ArgoCD authentication
+//  2. Set the refresh annotations (e.g. argocd.argoproj.io/refresh).
+//     The downside is that the operation will be done async
+//  3. Manually updating the application using the k8s API
+//
+// The decision is to go with the ArgoCD API since this seems to handle
+// more cases (e.g. sync windows, concurrent updates, retries) and is
+// likely the expected way for the sync to happen
+func (s *FlowWebServer) syncApplication(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	w.Header().Set("Content-Type", "application/json")
+
+	namespace := r.PathValue("namespace")
+	name := r.PathValue("name")
+
+	err := s.syncClient.Sync(ctx, namespace, name)
+	if err != nil {
+		// todo handle 404 not found error
+		log.FromContext(ctx).Error(err, "failed to sync ArgoCD application")
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":"failed to sync ArgoCD application"}`)
+		return
+	}
+
+	log.FromContext(ctx).Info(
+		"application synced successfully",
+		"name", name,
+		"namespace", namespace,
+	)
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"message":"application synced successfully"}`)
 }
 
 // Returns a new server with sane defaults. Based on internal package:

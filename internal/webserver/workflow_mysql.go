@@ -12,7 +12,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-func getWorkloadsFromMysql(workflowMysqlAddr string) ([]workflowsv1.Workflow, error) {
+func getWorkflowsFromMysql(workflowMysqlAddr string) ([]workflowsv1.Workflow, error) {
 	db, err := sql.Open("mysql", workflowMysqlAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open mysql db %s: %s", workflowMysqlAddr, err)

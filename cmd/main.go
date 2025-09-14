@@ -73,6 +73,7 @@ func main() {
 	var serverAddr string
 	var workflowMysqlAddr string
 	var githubKey string
+	var argocdKey string
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
@@ -82,6 +83,7 @@ func main() {
 	flag.StringVar(&serverAddr, "server-bind-address", ":2846", "The address the server endpoint binds to.")
 	flag.StringVar(&workflowMysqlAddr, "workflow-mysql-address", "/argo", "DSN (Data Source Name) of the workflow mysql database")
 	flag.StringVar(&githubKey, "github-key", "/github-key/private-key.pem", "Path to the GitHub App key")
+	flag.StringVar(&argocdKey, "argocd-key", "/argocd-jettisonproj-secret/password", "Path to the ArgoCD key")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -193,6 +195,7 @@ func main() {
 	if err = (&webserver.FlowWebServer{
 		BindAddress:          serverAddr,
 		WorkflowMysqlAddress: workflowMysqlAddr,
+		ArgoCDKey:            argocdKey,
 		Client:               mgr.GetClient(),
 		Cache:                mgr.GetCache(),
 		Scheme:               mgr.GetScheme(),
