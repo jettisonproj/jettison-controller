@@ -13,7 +13,6 @@ import (
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/gorilla/websocket"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -90,7 +89,6 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /ws", s.handleWebsocket)
-	mux.HandleFunc("GET /api/v1/namespaces/{name}", s.handleNamespace)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/flows/{name}", s.handleFlow)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/applications/{name}", s.handleApplication)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/rollouts/{name}", s.handleRollout)
@@ -135,32 +133,6 @@ func (s *FlowWebServer) handleWebsocket(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	s.flowWatcher.register <- &WebConn{ctx: ctx, conn: conn}
-}
-
-func (s *FlowWebServer) handleNamespace(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	w.Header().Set("Content-Type", "application/json")
-
-	namespace := &corev1.Namespace{}
-	name := r.PathValue("name")
-	objectKey := client.ObjectKey{
-		Namespace: name,
-		Name:      name,
-	}
-	err := s.Client.Get(ctx, objectKey, namespace)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			log.FromContext(ctx).Info("namespace not found", "name", name)
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, `{"error":"namespace not found"}`)
-			return
-		}
-		log.FromContext(ctx).Error(err, "failed to fetch namespace", "name", name)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, `{"error":"failed to fetch namespace"}`)
-		return
-	}
-	json.NewEncoder(w).Encode(namespace)
 }
 
 func (s *FlowWebServer) handleFlow(w http.ResponseWriter, r *http.Request) {

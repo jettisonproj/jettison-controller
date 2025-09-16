@@ -9,7 +9,6 @@ import (
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/gorilla/websocket"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
@@ -72,30 +71,9 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 	connLog.Info("registering connection")
 
 	// Send the initial resources
-	// send namespaces
-	namespaces := &corev1.NamespaceList{}
-	err := s.client.List(ctx, namespaces)
-	if err != nil {
-		connLog.Error(err, "failed to get namespaces for websocket")
-		err = conn.conn.WriteJSON(newWebError(
-			fmt.Sprintf("failed to get namespaces: %s", err),
-		))
-		if err != nil {
-			connLog.Error(err, "failed to send error message after failing to get namespaces")
-		}
-		s.unregisterConn(conn)
-		return
-	}
-	err = conn.conn.WriteJSON(namespaces)
-	if err != nil {
-		connLog.Error(err, "failed to send namespaces for websocket")
-		s.unregisterConn(conn)
-		return
-	}
-
 	// send flows
 	flows := &v1alpha1.FlowList{}
-	err = s.client.List(ctx, flows)
+	err := s.client.List(ctx, flows)
 	if err != nil {
 		connLog.Error(err, "failed to get flows for websocket")
 		err = conn.conn.WriteJSON(newWebError(
@@ -232,16 +210,6 @@ func (s *FlowWatcher) setupWatcher() error {
 
 	ctx := context.Background()
 
-	// send namespace events
-	namespaceInformer, err := s.cache.GetInformer(ctx, &corev1.Namespace{})
-	if err != nil {
-		return fmt.Errorf("failed to get namespace informer for webserver: %s", err)
-	}
-	_, err = namespaceInformer.AddEventHandler(s)
-	if err != nil {
-		return fmt.Errorf("failed to init namespace informer for webserver: %s", err)
-	}
-
 	// send flow events
 	flowInformer, err := s.cache.GetInformer(ctx, &v1alpha1.Flow{})
 	if err != nil {
@@ -286,16 +254,6 @@ func (s *FlowWatcher) setupWatcher() error {
 
 func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 	switch resource := obj.(type) {
-	case *corev1.Namespace:
-		setupLog.Info(
-			"got add event for Namespace",
-			"name", resource.Name,
-			"isInInitialList", isInInitialList,
-		)
-		if resource.APIVersion == "" || resource.Kind == "" {
-			s.backfillNamespaceSchema(resource)
-		}
-		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*resource}}
 	case *v1alpha1.Flow:
 		setupLog.Info(
 			"got add event for Flow",
@@ -348,15 +306,6 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 
 func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 	switch newResource := newObj.(type) {
-	case *corev1.Namespace:
-		setupLog.Info(
-			"got update event for Namespace",
-			"name", newResource.Name,
-		)
-		if newResource.APIVersion == "" || newResource.Kind == "" {
-			s.backfillNamespaceSchema(newResource)
-		}
-		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*newResource}}
 	case *v1alpha1.Flow:
 		setupLog.Info(
 			"got update event for Flow",
@@ -405,25 +354,6 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 
 func (s *FlowWatcher) OnDelete(obj interface{}) {
 	switch resource := obj.(type) {
-	case *corev1.Namespace:
-		setupLog.Info(
-			"got delete event for Namespace",
-			"name", resource.Name,
-		)
-
-		// Add a distinguishing delete key
-		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
-		annotationVal := "delete"
-		if resource.Annotations == nil {
-			resource.Annotations = map[string]string{annotationKey: annotationVal}
-		} else {
-			resource.Annotations[annotationKey] = annotationVal
-		}
-
-		if resource.APIVersion == "" || resource.Kind == "" {
-			s.backfillNamespaceSchema(resource)
-		}
-		s.notify <- corev1.NamespaceList{Items: []corev1.Namespace{*resource}}
 	case *v1alpha1.Flow:
 		setupLog.Info(
 			"got delete event for Flow",
@@ -507,20 +437,6 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		err := fmt.Errorf("unknown delete event type: %T", obj)
 		setupLog.Error(err, "unknown type in delete event")
 	}
-}
-
-// Backfill TypeMeta data that has been dropped
-// See: https://github.com/kubernetes/client-go/issues/541
-func (s *FlowWatcher) backfillNamespaceSchema(namespace *corev1.Namespace) {
-	setupLog.Info("backfilling namespace metadata")
-	gvk, err := apiutil.GVKForObject(namespace, s.scheme)
-	if err != nil {
-		setupLog.Error(err, "unable to get namespace schema info")
-		panic(err)
-	}
-	apiVersion, kind := gvk.ToAPIVersionAndKind()
-	namespace.APIVersion = apiVersion
-	namespace.Kind = kind
 }
 
 // Backfill TypeMeta data that has been dropped
