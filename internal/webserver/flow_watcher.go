@@ -10,6 +10,7 @@ import (
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/gorilla/websocket"
 	"k8s.io/apimachinery/pkg/runtime"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -48,6 +49,10 @@ type FlowWatcher struct {
 
 	// MySQL workflows are sent as initial resources
 	mysqlWorkflows []workflowsv1.Workflow
+
+	// Separate client is needed for pod logs
+	// See https://github.com/kubernetes-sigs/controller-runtime/issues/452
+	kubeClient *corev1client.CoreV1Client
 }
 
 func (s *FlowWatcher) run() {

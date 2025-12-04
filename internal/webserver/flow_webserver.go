@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -80,6 +81,13 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 		return fmt.Errorf("failed to create ArgoCD sync client: %s", err)
 	}
 
+	// Create a separate client for pod logs
+	// See https://github.com/kubernetes-sigs/controller-runtime/issues/452
+	kubeClient, err := corev1client.NewForConfigAndClient(mgr.GetConfig(), mgr.GetHTTPClient())
+	if err != nil {
+		return fmt.Errorf("failed to create kube client: %s", err)
+	}
+
 	// Set up server
 	serverListener, err := net.Listen("tcp", s.BindAddress)
 	if err != nil {
@@ -115,6 +123,7 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 		unregister:     make(chan *WebConn),
 		conns:          make(map[*WebConn]bool),
 		mysqlWorkflows: mysqlWorkflows,
+		kubeClient:     kubeClient,
 	}
 	err = flowWatcher.setupWatcher()
 	if err != nil {
