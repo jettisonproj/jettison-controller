@@ -15,7 +15,6 @@ import (
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 )
@@ -72,27 +71,26 @@ func (s *FlowWatcher) run() {
 
 func (s *FlowWatcher) registerConn(conn *WebConn) {
 	ctx := conn.ctx
-	connLog := log.FromContext(ctx)
-	connLog.Info("registering connection")
+	conn.log.Info("registering connection")
 
 	// Send the initial resources
 	// send flows
 	flows := &v1alpha1.FlowList{}
 	err := s.client.List(ctx, flows)
 	if err != nil {
-		connLog.Error(err, "failed to get flows for websocket")
+		conn.log.Error(err, "failed to get flows for websocket")
 		err = conn.conn.WriteJSON(newWebError(
 			fmt.Sprintf("failed to get flows: %s", err),
 		))
 		if err != nil {
-			connLog.Error(err, "failed to send error message after failing to get flows")
+			conn.log.Error(err, "failed to send error message after failing to get flows")
 		}
 		s.unregisterConn(conn)
 		return
 	}
 	err = conn.conn.WriteJSON(flows)
 	if err != nil {
-		connLog.Error(err, "failed to send flows for websocket")
+		conn.log.Error(err, "failed to send flows for websocket")
 		s.unregisterConn(conn)
 		return
 	}
@@ -101,19 +99,19 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 	applications := &cdv1.ApplicationList{}
 	err = s.client.List(ctx, applications)
 	if err != nil {
-		connLog.Error(err, "failed to get applications for websocket")
+		conn.log.Error(err, "failed to get applications for websocket")
 		err = conn.conn.WriteJSON(newWebError(
 			fmt.Sprintf("failed to get applications: %s", err),
 		))
 		if err != nil {
-			connLog.Error(err, "failed to send error message after failing to get applications")
+			conn.log.Error(err, "failed to send error message after failing to get applications")
 		}
 		s.unregisterConn(conn)
 		return
 	}
 	err = conn.conn.WriteJSON(applications)
 	if err != nil {
-		connLog.Error(err, "failed to send applications for websocket")
+		conn.log.Error(err, "failed to send applications for websocket")
 		s.unregisterConn(conn)
 		return
 	}
@@ -122,19 +120,19 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 	rollouts := &rolloutsv1.RolloutList{}
 	err = s.client.List(ctx, rollouts)
 	if err != nil {
-		connLog.Error(err, "failed to get rollouts for websocket")
+		conn.log.Error(err, "failed to get rollouts for websocket")
 		err = conn.conn.WriteJSON(newWebError(
 			fmt.Sprintf("failed to get rollouts: %s", err),
 		))
 		if err != nil {
-			connLog.Error(err, "failed to send error message after failing to get rollouts")
+			conn.log.Error(err, "failed to send error message after failing to get rollouts")
 		}
 		s.unregisterConn(conn)
 		return
 	}
 	err = conn.conn.WriteJSON(rollouts)
 	if err != nil {
-		connLog.Error(err, "failed to send rollouts for websocket")
+		conn.log.Error(err, "failed to send rollouts for websocket")
 		s.unregisterConn(conn)
 		return
 	}
@@ -143,12 +141,12 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 	workflows := &workflowsv1.WorkflowList{}
 	err = s.client.List(ctx, workflows)
 	if err != nil {
-		connLog.Error(err, "failed to get workflows for websocket")
+		conn.log.Error(err, "failed to get workflows for websocket")
 		err = conn.conn.WriteJSON(newWebError(
 			fmt.Sprintf("failed to get workflows: %s", err),
 		))
 		if err != nil {
-			connLog.Error(err, "failed to send error message after failing to get workflows")
+			conn.log.Error(err, "failed to send error message after failing to get workflows")
 		}
 		s.unregisterConn(conn)
 		return
@@ -156,7 +154,7 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 	workflows.Items = slices.Concat(s.mysqlWorkflows, workflows.Items)
 	err = conn.conn.WriteJSON(workflows)
 	if err != nil {
-		connLog.Error(err, "failed to send workflows for websocket")
+		conn.log.Error(err, "failed to send workflows for websocket")
 		s.unregisterConn(conn)
 		return
 	}
@@ -172,15 +170,14 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 		s.unregister <- conn
 	}()
 	ctx := conn.ctx
-	connLog := log.FromContext(ctx)
 	for {
 		messageType, message, err := conn.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				connLog.Error(err, "unexpected close error")
+				conn.log.Error(err, "unexpected close error")
 				panic(err)
 			}
-			connLog.Info("connection exited cleanly")
+			conn.log.Info("connection exited cleanly")
 			return
 		}
 		err = fmt.Errorf("unexpected message type %d and message %s", messageType, string(message))
@@ -189,23 +186,22 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 }
 
 func (s *FlowWatcher) unregisterConn(conn *WebConn) {
-	ctx := conn.ctx
-	connLog := log.FromContext(ctx)
-	connLog.Info("unregistering connection")
+	conn.log.Info("unregistering connection")
 
 	delete(s.conns, conn)
 	err := conn.conn.Close()
 	if err != nil {
-		connLog.Error(err, "error closing connection")
+		conn.log.Error(err, "error closing connection")
+		conn.cancelCauseFunc(fmt.Errorf("connection closed with err: %s", err))
+		return
 	}
+	conn.cancelCauseFunc(fmt.Errorf("connection closed"))
 }
 
 func (s *FlowWatcher) notifyConn(conn *WebConn, message interface{}) {
 	err := conn.conn.WriteJSON(message)
 	if err != nil {
-		ctx := conn.ctx
-		connLog := log.FromContext(ctx)
-		connLog.Error(err, "failed to notify conn. Closing...")
+		conn.log.Error(err, "failed to notify conn. Closing...")
 		s.unregisterConn(conn)
 	}
 }

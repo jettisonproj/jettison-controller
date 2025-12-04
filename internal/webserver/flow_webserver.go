@@ -1,6 +1,7 @@
 package webserver
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -134,14 +135,18 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (s *FlowWebServer) handleWebsocket(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.FromContext(ctx).Error(err, "failed to get websocket connection for request")
+		log.FromContext(r.Context()).Error(err, "failed to get websocket connection for request")
 		return
 	}
-	s.flowWatcher.register <- &WebConn{ctx: ctx, conn: conn}
+	ctx, cancelCauseFunc := context.WithCancelCause(context.Background())
+	s.flowWatcher.register <- &WebConn{
+		ctx:             ctx,
+		cancelCauseFunc: cancelCauseFunc,
+		log:             log.FromContext(ctx),
+		conn:            conn,
+	}
 }
 
 func (s *FlowWebServer) handleFlow(w http.ResponseWriter, r *http.Request) {
