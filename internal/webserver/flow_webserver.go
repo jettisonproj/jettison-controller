@@ -119,7 +119,7 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 		client:         s.Client,
 		cache:          s.Cache,
 		scheme:         s.Scheme,
-		notify:         make(chan interface{}),
+		notifyAll:      make(chan interface{}),
 		register:       make(chan *WebConn),
 		unregister:     make(chan *WebConn),
 		conns:          make(map[*WebConn]bool),

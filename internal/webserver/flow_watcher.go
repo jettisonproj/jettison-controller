@@ -35,7 +35,7 @@ type FlowWatcher struct {
 	scheme *runtime.Scheme
 
 	// Sends notifications to the websockets
-	notify chan interface{}
+	notifyAll chan interface{}
 
 	// Registers a websocket
 	register chan *WebConn
@@ -61,7 +61,7 @@ func (s *FlowWatcher) run() {
 			s.registerConn(conn)
 		case conn := <-s.unregister:
 			s.unregisterConn(conn)
-		case message := <-s.notify:
+		case message := <-s.notifyAll:
 			for conn := range s.conns {
 				s.notifyConn(conn, message)
 			}
@@ -271,7 +271,7 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillFlowSchema(resource)
 		}
-		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
+		s.notifyAll <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
 	case *cdv1.Application:
 		setupLog.Info(
 			"got add event for Application",
@@ -282,7 +282,7 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillApplicationSchema(resource)
 		}
-		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
+		s.notifyAll <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
 	case *rolloutsv1.Rollout:
 		setupLog.Info(
 			"got add event for Rollout",
@@ -293,7 +293,7 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillRolloutSchema(resource)
 		}
-		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
+		s.notifyAll <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
 	case *workflowsv1.Workflow:
 		setupLog.Info(
 			"got add event for Rollout",
@@ -304,7 +304,7 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillWorkflowSchema(resource)
 		}
-		s.notify <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*resource}}
+		s.notifyAll <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*resource}}
 	default:
 		err := fmt.Errorf("unknown add event type: %T", obj)
 		setupLog.Error(err, "unknown type in add event")
@@ -322,7 +322,7 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillFlowSchema(newResource)
 		}
-		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*newResource}}
+		s.notifyAll <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*newResource}}
 	case *cdv1.Application:
 		setupLog.Info(
 			"got update event for Application",
@@ -332,7 +332,7 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillApplicationSchema(newResource)
 		}
-		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*newResource}}
+		s.notifyAll <- cdv1.ApplicationList{Items: []cdv1.Application{*newResource}}
 	case *rolloutsv1.Rollout:
 		setupLog.Info(
 			"got update event for Rollout",
@@ -342,7 +342,7 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillRolloutSchema(newResource)
 		}
-		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*newResource}}
+		s.notifyAll <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*newResource}}
 	case *workflowsv1.Workflow:
 		setupLog.Info(
 			"got update event for Workflow",
@@ -352,7 +352,7 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillWorkflowSchema(newResource)
 		}
-		s.notify <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*newResource}}
+		s.notifyAll <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*newResource}}
 	default:
 		err := fmt.Errorf("unknown update event type: %T", newObj)
 		setupLog.Error(err, "unknown type in update event")
@@ -380,7 +380,7 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillFlowSchema(resource)
 		}
-		s.notify <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
+		s.notifyAll <- v1alpha1.FlowList{Items: []v1alpha1.Flow{*resource}}
 	case *cdv1.Application:
 		setupLog.Info(
 			"got delete event for Application",
@@ -400,7 +400,7 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillApplicationSchema(resource)
 		}
-		s.notify <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
+		s.notifyAll <- cdv1.ApplicationList{Items: []cdv1.Application{*resource}}
 	case *rolloutsv1.Rollout:
 		setupLog.Info(
 			"got delete event for Rollout",
@@ -420,7 +420,7 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillRolloutSchema(resource)
 		}
-		s.notify <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
+		s.notifyAll <- rolloutsv1.RolloutList{Items: []rolloutsv1.Rollout{*resource}}
 	case *workflowsv1.Workflow:
 		setupLog.Info(
 			"got delete event for Workflow",
@@ -439,7 +439,7 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillWorkflowSchema(resource)
 		}
-		s.notify <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*resource}}
+		s.notifyAll <- workflowsv1.WorkflowList{Items: []workflowsv1.Workflow{*resource}}
 	default:
 		err := fmt.Errorf("unknown delete event type: %T", obj)
 		setupLog.Error(err, "unknown type in delete event")
