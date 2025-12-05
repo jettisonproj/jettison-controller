@@ -69,6 +69,8 @@ func (s *FlowWatcher) run() {
 	}
 }
 
+// Register the connection
+// This is only expected to be called once per connection
 func (s *FlowWatcher) registerConn(conn *WebConn) {
 	ctx := conn.ctx
 	conn.log.Info("registering connection")
@@ -85,13 +87,13 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		if err != nil {
 			conn.log.Error(err, "failed to send error message after failing to get flows")
 		}
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 	err = conn.conn.WriteJSON(flows)
 	if err != nil {
 		conn.log.Error(err, "failed to send flows for websocket")
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 
@@ -106,13 +108,13 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		if err != nil {
 			conn.log.Error(err, "failed to send error message after failing to get applications")
 		}
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 	err = conn.conn.WriteJSON(applications)
 	if err != nil {
 		conn.log.Error(err, "failed to send applications for websocket")
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 
@@ -127,13 +129,13 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		if err != nil {
 			conn.log.Error(err, "failed to send error message after failing to get rollouts")
 		}
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 	err = conn.conn.WriteJSON(rollouts)
 	if err != nil {
 		conn.log.Error(err, "failed to send rollouts for websocket")
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 
@@ -148,14 +150,14 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 		if err != nil {
 			conn.log.Error(err, "failed to send error message after failing to get workflows")
 		}
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 	workflows.Items = slices.Concat(s.mysqlWorkflows, workflows.Items)
 	err = conn.conn.WriteJSON(workflows)
 	if err != nil {
 		conn.log.Error(err, "failed to send workflows for websocket")
-		s.unregisterConn(conn)
+		s.unregister <- conn
 		return
 	}
 
@@ -185,6 +187,8 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 	}
 }
 
+// Unregister the connection
+// This should only be called from the channel receiver to prevent concurrent writes
 func (s *FlowWatcher) unregisterConn(conn *WebConn) {
 	conn.log.Info("unregistering connection")
 
@@ -198,11 +202,13 @@ func (s *FlowWatcher) unregisterConn(conn *WebConn) {
 	conn.cancelCauseFunc(fmt.Errorf("connection closed"))
 }
 
+// Send the message to the connection
+// This should only be called from the channel receiver to prevent concurrent writes
 func (s *FlowWatcher) notifyConn(conn *WebConn, message interface{}) {
 	err := conn.conn.WriteJSON(message)
 	if err != nil {
 		conn.log.Error(err, "failed to notify conn. Closing...")
-		s.unregisterConn(conn)
+		s.unregister <- conn
 	}
 }
 
