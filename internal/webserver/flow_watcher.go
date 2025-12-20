@@ -37,6 +37,9 @@ type FlowWatcher struct {
 	// Sends notifications to the websockets
 	notifyAll chan interface{}
 
+	// Sends notification to one websocket
+	notifyOne chan WebConnNotification
+
 	// Registers a websocket
 	register chan *WebConn
 
@@ -54,6 +57,12 @@ type FlowWatcher struct {
 	kubeClient *corev1client.CoreV1Client
 }
 
+// Struct containing the data to send a notification to one websocket
+type WebConnNotification struct {
+	conn    *WebConn
+	message interface{}
+}
+
 func (s *FlowWatcher) run() {
 	for {
 		select {
@@ -65,6 +74,10 @@ func (s *FlowWatcher) run() {
 			for conn := range s.conns {
 				s.notifyConn(conn, message)
 			}
+		case webConnNotification := <-s.notifyOne:
+			conn := webConnNotification.conn
+			message := webConnNotification.message
+			s.notifyConn(conn, message)
 		}
 	}
 }
