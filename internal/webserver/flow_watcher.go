@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"slices"
 
@@ -184,7 +185,6 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 	defer func() {
 		s.unregister <- conn
 	}()
-	ctx := conn.ctx
 	for {
 		messageType, message, err := conn.conn.ReadMessage()
 		if err != nil {
@@ -195,8 +195,30 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 			conn.log.Info("connection exited cleanly")
 			return
 		}
-		err = fmt.Errorf("unexpected message type %d and message %s", messageType, string(message))
-		connLog.Error(err, "unexpected message read")
+
+		if messageType != websocket.TextMessage {
+			panic(fmt.Errorf("unexpected message read type %d and message %s", messageType, string(message)))
+		}
+
+		var webMessage WebMessage
+		if err := json.Unmarshal(message, &webMessage); err != nil {
+			conn.log.Error(err, "failed to parse web message", "message", string(message))
+			panic(err)
+		}
+
+		switch webMessage.MessageType {
+		case CONTAINER_LOG_MESSAGE_TYPE:
+			var containerLogMessageData ContainerLogMessageData
+			if err := json.Unmarshal(webMessage.MessageData, &containerLogMessageData); err != nil {
+				conn.log.Error(err, "failed to parse container log message", "message", string(message))
+				panic(err)
+			}
+
+			go s.handleContainerLogMessage(conn, containerLogMessageData)
+			continue
+		default:
+			panic(fmt.Errorf("unexpected web message type %s", webMessage.MessageType))
+		}
 	}
 }
 
