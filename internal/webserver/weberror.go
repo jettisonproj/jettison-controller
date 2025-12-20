@@ -1,6 +1,8 @@
 package webserver
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
@@ -46,4 +48,15 @@ func newWebError(message string) WebErrorList {
 			},
 		},
 	}
+}
+
+func (s *FlowWatcher) sendWebError(conn *WebConn, err error, msg string) {
+	conn.log.Error(err, msg)
+	s.notifyOne <- WebConnNotification{
+		conn: conn,
+		message: newWebError(
+			fmt.Sprintf("%s: %s", msg, err),
+		),
+	}
+	s.unregister <- conn
 }
