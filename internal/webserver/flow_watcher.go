@@ -10,6 +10,7 @@ import (
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/gorilla/websocket"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -529,10 +530,24 @@ func (s *FlowWatcher) backfillWorkflowSchema(workflow *workflowsv1.Workflow) {
 	setupLog.Info("backfilling workflow metadata")
 	gvk, err := apiutil.GVKForObject(workflow, s.scheme)
 	if err != nil {
-		setupLog.Error(err, "unable to get rollout schema info")
+		setupLog.Error(err, "unable to get workflow schema info")
 		panic(err)
 	}
 	apiVersion, kind := gvk.ToAPIVersionAndKind()
 	workflow.APIVersion = apiVersion
 	workflow.Kind = kind
+}
+
+// Backfill TypeMeta data that has been dropped
+// See: https://github.com/kubernetes/client-go/issues/541
+func (s *FlowWatcher) backfillPodSchema(pod *corev1.Pod) {
+	setupLog.Info("backfilling pod metadata")
+	gvk, err := apiutil.GVKForObject(pod, s.scheme)
+	if err != nil {
+		setupLog.Error(err, "unable to get pod schema info")
+		panic(err)
+	}
+	apiVersion, kind := gvk.ToAPIVersionAndKind()
+	pod.APIVersion = apiVersion
+	pod.Kind = kind
 }
