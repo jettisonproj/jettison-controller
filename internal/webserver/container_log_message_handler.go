@@ -2,6 +2,7 @@ package webserver
 
 import (
 	"bufio"
+	"fmt"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
@@ -14,8 +15,6 @@ const (
 	containerLogKind = "ContainerLog"
 )
 
-// Based on:
-// https://github.com/argoproj/argo-workflows/blob/main/util/logs/workflow-logger.go#L47
 func (s *FlowWatcher) handleContainerLogMessage(
 	conn *WebConn,
 	containerLogMessageData ContainerLogMessageData,
@@ -27,6 +26,16 @@ func (s *FlowWatcher) handleContainerLogMessage(
 		"containerName", containerLogMessageData.ContainerName,
 	)
 
+	go s.streamLogLines(conn, containerLogMessageData)
+	go s.sendPod(conn, containerLogMessageData)
+}
+
+// Based on:
+// https://github.com/argoproj/argo-workflows/blob/main/util/logs/workflow-logger.go#L47
+func (s *FlowWatcher) streamLogLines(
+	conn *WebConn,
+	containerLogMessageData ContainerLogMessageData,
+) {
 	podsInterface := s.kubeClient.Pods(containerLogMessageData.Namespace)
 
 	podLogOptions := &v1.PodLogOptions{
@@ -109,6 +118,36 @@ func (s *FlowWatcher) sendLogLines(
 					},
 				},
 			},
+		},
+	}
+}
+
+func (s *FlowWatcher) sendPod(
+	conn *WebConn,
+	containerLogMessageData ContainerLogMessageData,
+) {
+	podsInterface := s.kubeClient.Pods(containerLogMessageData.Namespace)
+	pod, err := podsInterface.Get(
+		conn.ctx,
+		containerLogMessageData.PodName,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		msg := fmt.Sprintf(
+			"failed to get pod %s/%s",
+			containerLogMessageData.Namespace,
+			containerLogMessageData.PodName,
+		)
+		s.sendWebError(conn, err, msg)
+		return
+	}
+	if pod.APIVersion == "" || pod.Kind == "" {
+		s.backfillPodSchema(pod)
+	}
+	s.notifyOne <- WebConnNotification{
+		conn: conn,
+		message: v1.PodList{
+			Items: []v1.Pod{*pod},
 		},
 	}
 }
