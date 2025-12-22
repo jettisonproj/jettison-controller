@@ -14,6 +14,7 @@ import (
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/gorilla/websocket"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -100,6 +101,7 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 	mux.HandleFunc("GET /ws", s.handleWebsocket)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/flows/{name}", s.handleFlow)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/applications/{name}", s.handleApplication)
+	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/pods/{name}", s.handlePod)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/rollouts/{name}", s.handleRollout)
 	mux.HandleFunc("GET /api/v1/namespaces/{namespace}/workflows/{name}", s.handleWorkflow)
 
@@ -202,6 +204,33 @@ func (s *FlowWebServer) handleApplication(w http.ResponseWriter, r *http.Request
 		return
 	}
 	json.NewEncoder(w).Encode(application)
+}
+
+func (s *FlowWebServer) handlePod(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	w.Header().Set("Content-Type", "application/json")
+
+	pod := &corev1.Pod{}
+	namespace := r.PathValue("namespace")
+	name := r.PathValue("name")
+	objectKey := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+	err := s.Client.Get(ctx, objectKey, pod)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			log.FromContext(ctx).Info("pod not found", "namespace", namespace, "name", name)
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, `{"error":"pod not found"}`)
+			return
+		}
+		log.FromContext(ctx).Error(err, "failed to fetch pod", "namespace", namespace, "name", name)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":"failed to fetch pod"}`)
+		return
+	}
+	json.NewEncoder(w).Encode(pod)
 }
 
 func (s *FlowWebServer) handleRollout(w http.ResponseWriter, r *http.Request) {
