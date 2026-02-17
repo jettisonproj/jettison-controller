@@ -15,6 +15,8 @@ RUN go mod download
 COPY cmd/main.go cmd/main.go
 COPY api/ api/
 COPY internal/ internal/
+COPY test/ test/
+COPY testdata/ testdata/
 
 # Build Main Executable and Integration Test Executable
 # the GOARCH has not a default value to allow the binary be built according to the host where the command
@@ -26,7 +28,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go test -c ./test
 
 # Unit Test
 FROM build as test
-RUN [[ -z "$(go fmt ./...)" ]]
+RUN [ -z "$(go fmt ./...)" ]
 RUN go vet ./...
 RUN go test $(go list ./... | grep -v /e2e) -coverprofile cover.out
 
