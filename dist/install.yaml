@@ -486,9 +486,14 @@ spec:
         volumeMounts:
         - mountPath: /github-key
           name: github-key
+        - mountPath: /argocd-jettisonproj-secret
+          name: argocd-jettisonproj-secret
       serviceAccountName: jettison-controller-manager
       terminationGracePeriodSeconds: 10
       volumes:
       - name: github-key
         secret:
           secretName: github-key
+      - name: argocd-jettisonproj-secret
+        secret:
+          secretName: argocd-jettisonproj-secret

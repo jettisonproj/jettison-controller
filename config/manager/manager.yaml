@@ -100,7 +100,6 @@ spec:
         volumeMounts:
         - name: github-key
           mountPath: /github-key
-        volumeMounts:
         - name: argocd-jettisonproj-secret
           mountPath: /argocd-jettisonproj-secret
       serviceAccountName: controller-manager
