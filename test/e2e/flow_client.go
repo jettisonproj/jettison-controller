@@ -8,7 +8,7 @@ import (
 
 const (
 	flowKind  = "flows"
-	namespace = "rollouts-demo"
+	namespace = "jettisonproj"
 )
 
 // A client for Flow Custom Resources

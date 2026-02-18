@@ -1,0 +1,19 @@
+#
+# Push flow for jettisonproj/rollouts-demo
+#
+apiVersion: workflows.jettisonproj.io/v1alpha1
+kind: Flow
+metadata:
+  name: e2e-test-github-push
+spec:
+  # activeDeadlineSeconds: 3600 # Defaults to 3600 (1h) for push build
+  triggers:
+  - triggerName: github-push
+    triggerSource: GitHubPush
+    repoUrl: "https://github.com/jettisonproj/rollouts-demo.git"
+    # baseRef: "main" # Defaults to main
+  steps:
+  - stepName: docker-build-test-publish
+    stepSource: DockerBuildTestPublish
+    # dockerfilePath: Dockerfile # Defaults to Dockerfile
+    # dockerContextDir: "" # Defaults to "" (root)

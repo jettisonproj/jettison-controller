@@ -19,6 +19,7 @@ package e2e
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -48,6 +49,13 @@ func TestIntegrationWorkflowTemplates(t *testing.T) {
 	workflowTemplateActual, err := client.WorkflowTemplate().Get()
 	require.Nil(t, err, "failed to get workflow template")
 
+	// avoid comparison with dynamically set fields
+	workflowTemplateActual.UID = workflowTemplateExpected.UID
+	workflowTemplateActual.ResourceVersion = workflowTemplateExpected.ResourceVersion
+	workflowTemplateActual.Generation = workflowTemplateExpected.Generation
+	workflowTemplateActual.CreationTimestamp = workflowTemplateExpected.CreationTimestamp
+	workflowTemplateActual.ManagedFields = workflowTemplateExpected.ManagedFields
+
 	require.Equal(t, workflowTemplateExpected, workflowTemplateActual)
 }
 
@@ -58,7 +66,7 @@ func TestIntegrationGitHubPush(t *testing.T) {
 	require.Nil(t, err, "failed to create CR client")
 
 	// delete flow if it exists
-	flowName := "github-push"
+	flowName := "e2e-test-github-push"
 	_, err = client.Flow().Get(flowName)
 	if err == nil {
 		err = client.Flow().Delete(flowName)
@@ -71,17 +79,32 @@ func TestIntegrationGitHubPush(t *testing.T) {
 	require.Truef(t, err != nil && errors.IsNotFound(err), "unexpected error getting flow: %s", err)
 
 	// create flow
-	flowFilePath := fmt.Sprintf("%s/%s", testdataDir, "github-push-minimal.yaml")
+	flowFilePath := fmt.Sprintf("%s/%s", testdataDir, "e2e-test-github-push-minimal.yaml")
 	err = client.Flow().Create(flowFilePath)
 	require.Nil(t, err, "failed to create flow")
 
 	// get expected sensor from file
-	sensorFilePath := fmt.Sprintf("%s/%s", testdataDir, "github-push-minimal-sensor.yaml")
+	sensorFilePath := fmt.Sprintf("%s/%s", testdataDir, "e2e-test-github-push-minimal-sensor.yaml")
 	sensorExpected, err := testutil.ParseYaml[eventsv1.Sensor](sensorFilePath)
 	require.Nilf(t, err, "failed to parse sensor %s", sensorFilePath)
 
 	// get actual sensor from api
-	sensorActual, err := client.Sensor().Get(flowName)
+	maxSensorRetries := 3
+	sensorRetryDelay := 1 * time.Second
+	var sensorActual *eventsv1.Sensor
+	for sensorAttempt := 1; sensorAttempt <= maxSensorRetries; sensorAttempt += 1 {
+		sensorActual, err = client.Sensor().Get(flowName)
+		if err == nil {
+			break
+		}
+		if !errors.IsNotFound(err) {
+			require.Nilf(t, err, "failed to get sensor %s", flowName)
+		}
+		if sensorAttempt >= maxSensorRetries {
+			break
+		}
+		time.Sleep(sensorRetryDelay)
+	}
 	require.Nilf(t, err, "failed to get sensor %s", flowName)
 
 	// compare expected and actual sensors
@@ -120,4 +143,8 @@ func TestIntegrationGitHubPush(t *testing.T) {
 	sensorExpected.Spec.Triggers[0].Template.K8s.Source.Resource = nil
 
 	require.Equal(t, sensorExpected, sensorActual)
+
+	err = client.Flow().Delete(flowName)
+	require.Nil(t, err, "failed to delete flow")
+
 }
