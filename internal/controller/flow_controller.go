@@ -53,6 +53,10 @@ type FlowReconciler struct {
 	GitHubTransport *ghinstallation.AppsTransport
 	GitHubClient    *github.Client
 
+	// Multiple Flows can share a namespace
+	// Keep track of synced namespaces to avoid unnecessary updates
+	SyncedNamespaces map[string]bool
+
 	// Multiple Flows can share an AppProject
 	// Keep track of synced AppProject names to avoid unnecessary updates
 	SyncedProjects map[string]bool
@@ -116,8 +120,28 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	// Reconcile the argocd AppProject and Application(s)
 	detectedDrift := false
+
+	if !r.SyncedNamespaces[flow.Namespace] {
+		// todo: ideally the external deps could be moved to here, but currently
+		// non-standard fields are used
+		// Reconcile the EventBus ./apps/argo/argo-events/common/event-bus.yaml
+		//   dynamic: namespace
+		// Reconcile the Sensor RBAC https://raw.githubusercontent.com/argoproj/argo-events/master/examples/rbac/sensor-rbac.yaml
+		//   dynamic: namespace
+		//   description: Sensor needs RBAC to create workflows
+		// Reconcile the Workflow RBAC https://raw.githubusercontent.com/argoproj/argo-events/master/examples/rbac/workflow-rbac.yaml
+		//   dynamic: namespace
+		//   description: the workflow manager pods themselves need to update the workflowtaskresults
+		// Reconcile the ServiceAccount ./apps/argo/argo-events/common/serviceaccount-deploy-step-executor.yaml
+		// Reconcile the Role ./apps/argo/argo-events/common/role-deploy-step-executor.yaml
+		// Reconcile the RoleBinding ./apps/argo/argo-events/common/rolebinding-deploy-step-executor.yaml
+		//   dynamic: namespace
+		//   description: the actual deploy step pods may need permissions (e.g. ArgoCD deploy step monitors resources after deploy)
+		r.SyncedNamespaces[flow.Namespace] = true
+	}
+
+	// Reconcile the argocd AppProject and Application(s)
 	projects, applications, err := appbuilder.BuildArgoApps(flowSteps)
 	if err != nil {
 		reconcilerlog.Error(err, "error building Flow applications", "flow", flow)
