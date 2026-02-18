@@ -2,8 +2,10 @@ package e2e
 
 import (
 	"fmt"
+	"os"
 
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -15,18 +17,16 @@ type CrClient struct {
 	workflowTemplateClient *WorkflowTemplateClient
 }
 
-// Create a new client using the specified kubeconfig path
-func NewCrClient(kubeconfig string) (*CrClient, error) {
-	masterUrl := "" // use the default
-
-	config, err := clientcmd.BuildConfigFromFlags(masterUrl, kubeconfig)
+// Create a new client using the kubeconfig (from env) or in-cluster config
+func NewCrClient() (*CrClient, error) {
+	config, err := getConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to load from kubeconfig %s: %s", kubeconfig, err)
+		return nil, fmt.Errorf("failed to load Kubernetes client config: %s", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get clientset from config %s: %s", kubeconfig, err)
+		return nil, fmt.Errorf("failed to get clientset from config: %s", err)
 	}
 
 	commonClient := &CommonClient{clientset}
@@ -35,6 +35,15 @@ func NewCrClient(kubeconfig string) (*CrClient, error) {
 		sensorClient:           &SensorClient{commonClient},
 		workflowTemplateClient: &WorkflowTemplateClient{commonClient},
 	}, nil
+}
+
+func getConfig() (*rest.Config, error) {
+	kubeconfig := os.Getenv("KUBECONFIG")
+	if kubeconfig != "" {
+		masterUrl := "" // use the default
+		return clientcmd.BuildConfigFromFlags(masterUrl, kubeconfig)
+	}
+	return rest.InClusterConfig()
 }
 
 func (c *CrClient) Flow() *FlowClient {

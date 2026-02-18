@@ -32,12 +32,11 @@ import (
 
 const (
 	testdataDir = "../../testdata"
-	kubeconfig  = "/etc/rancher/k3s/k3s.yaml"
 )
 
 func TestIntegrationWorkflowTemplates(t *testing.T) {
 	// create the custom resource client
-	client, err := NewCrClient(kubeconfig)
+	client, err := NewCrClient()
 	require.Nil(t, err, "failed to create CR client")
 
 	// get the expected workflow template from file
@@ -62,7 +61,7 @@ func TestIntegrationWorkflowTemplates(t *testing.T) {
 func TestIntegrationGitHubPush(t *testing.T) {
 
 	// create the custom resource client
-	client, err := NewCrClient(kubeconfig)
+	client, err := NewCrClient()
 	require.Nil(t, err, "failed to create CR client")
 
 	// delete flow if it exists
