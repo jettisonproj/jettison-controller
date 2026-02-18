@@ -10,7 +10,7 @@ metadata:
 spec:
   ports:
   - name: http
-    port: 80
+    port: 2846
     protocol: TCP
     targetPort: 2846
   selector:
