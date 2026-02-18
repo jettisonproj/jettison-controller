@@ -171,12 +171,13 @@ func main() {
 	}
 
 	if err = (&controller.FlowReconciler{
-		Client:          mgr.GetClient(),
-		Scheme:          mgr.GetScheme(),
-		GitHubTransport: githubTransport,
-		GitHubClient:    githubClient,
-		SyncedProjects:  make(map[string]bool),
-		SyncedRepos:     make(map[string]map[string]bool),
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		GitHubTransport:  githubTransport,
+		GitHubClient:     githubClient,
+		SyncedNamespaces: make(map[string]bool),
+		SyncedProjects:   make(map[string]bool),
+		SyncedRepos:      make(map[string]map[string]bool),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Flow")
 		os.Exit(1)
