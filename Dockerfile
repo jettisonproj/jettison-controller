@@ -36,11 +36,12 @@ RUN test -z "$(go fmt ./...)" && \
 # Use distroless as minimal base image to package the integration test binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot as integration-test
-WORKDIR /
-COPY --from=build /workspace/e2e.test .
+WORKDIR /test/e2e
+COPY --from=build /workspace/e2e.test /test/e2e/e2e.test
+COPY testdata/ /testdata/
 USER 65532:65532
 
-ENTRYPOINT ["/e2e.test"]
+ENTRYPOINT ["/test/e2e/e2e.test"]
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
