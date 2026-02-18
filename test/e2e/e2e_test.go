@@ -97,6 +97,12 @@ func TestIntegrationGitHubPush(t *testing.T) {
 		if err == nil {
 			break
 		}
+		if !errors.IsNotFound(err) {
+			require.Nilf(t, err, "failed to get sensor %s", flowName)
+		}
+		if sensorAttempt >= maxSensorRetries {
+			break
+		}
 		time.Sleep(sensorRetryDelay)
 	}
 	require.Nilf(t, err, "failed to get sensor %s", flowName)
