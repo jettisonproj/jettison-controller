@@ -331,9 +331,8 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			}
 			detectedDrift = true
 		} else {
-			mergedOwnedRepos, needsUpdate := mergeOwnedRepos(eventSource, repoOrg, repoName)
+			needsUpdate := mergeOwnedRepos(existingEventSource, repoOrg, repoName)
 			if needsUpdate {
-				eventSource.Spec.Github[eventsourcebuilder.EventSourceSectionName] = mergedOwnedRepos
 				if err := r.Update(ctx, existingEventSource); err != nil {
 					reconcilerlog.Error(err, "failed to update EventSource for Flow")
 					return ctrl.Result{}, err
@@ -424,20 +423,21 @@ func mergeOwnedRepos(
 	eventSource *eventsourcev1.EventSource,
 	repoOrg string,
 	repoName string,
-) (eventsourcev1.GithubEventSource, bool) {
-
-	githubEventSource := eventSource.Spec.Github[eventsourcebuilder.EventSourceSectionName]
+) bool {
+	githubEventSources := eventSource.Spec.Github
+	githubEventSource := githubEventSources[eventsourcebuilder.EventSourceSectionName]
 	ownedRepos := githubEventSource.Repositories
-
 	for i := range ownedRepos {
 		if ownedRepos[i].Owner == repoOrg {
 			for j := range ownedRepos[i].Names {
 				if ownedRepos[i].Names[j] == repoName {
-					return githubEventSource, false
+					return false
 				}
 			}
 			ownedRepos[i].Names = append(ownedRepos[i].Names, repoName)
-			return githubEventSource, true
+			githubEventSource.Repositories = ownedRepos
+			githubEventSources[eventsourcebuilder.EventSourceSectionName] = githubEventSource
+			return true
 		}
 	}
 
@@ -446,5 +446,6 @@ func mergeOwnedRepos(
 		Names: []string{repoName},
 	})
 	githubEventSource.Repositories = ownedRepos
-	return githubEventSource, true
+	githubEventSources[eventsourcebuilder.EventSourceSectionName] = githubEventSource
+	return true
 }
