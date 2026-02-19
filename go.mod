@@ -8,6 +8,7 @@ require (
 	github.com/argoproj/argo-rollouts v1.8.2
 	github.com/argoproj/argo-workflows/v3 v3.6.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.14.0
+	github.com/go-logr/logr v1.4.2
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/go-github/v74 v74.0.0
 	github.com/gorilla/websocket v1.5.3
@@ -70,7 +71,6 @@ require (
 	github.com/go-git/go-billy/v5 v5.6.2 // indirect
 	github.com/go-git/go-git/v5 v5.14.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
-	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.21.0 // indirect
