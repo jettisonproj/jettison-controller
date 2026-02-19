@@ -48,8 +48,6 @@ github.com/argoproj/argo-cd/v3 v3.3.1 h1:Sp48V2fnZ1ZWmUBLDfEKPWV9Z2Fpq8kjL6LJwlQ
 github.com/argoproj/argo-cd/v3 v3.3.1/go.mod h1:5VAfe0s/a4VY5GmAIFK76FtW6xn7zAcLmaw25bOL/2g=
 github.com/argoproj/argo-events v1.9.10 h1:zVC4J0sHUZd1LRRYks8XsVnx0M50KCZ1MuYoqZBOqFE=
 github.com/argoproj/argo-events v1.9.10/go.mod h1:ftbm7Gj8ycNxw56YVTY9xDUAJDa733jWBaL0M0qXz28=
-github.com/argoproj/argo-rollouts v1.8.2 h1:DBvkYvFTEH/zJ9MxJerqz/NMWEgZcHY5vxztyCBS5ak=
-github.com/argoproj/argo-rollouts v1.8.2/go.mod h1:xZIw+dg+B4IqMv5fNPenIBUiPb9xljL2st1xxkjhaC0=
 github.com/argoproj/argo-rollouts v1.8.4 h1:yRoN6/mNtb9H2VHhL09ZvF3ZfajerOrKB3EhgIGoz6c=
 github.com/argoproj/argo-rollouts v1.8.4/go.mod h1:/J99JlgiXreVVjJUIXTsguvubJRNBtYKAhIrx0UdaS8=
 github.com/argoproj/argo-workflows/v3 v3.6.0 h1:EMg//kaW6kaf9fDeBR5H8zYjdUoepgI9CnRzmYCs+ds=
