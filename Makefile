@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/jettisonproj/jettison-controller:c3e6598c9eb105cc2d0a778d605b2088a526420b
+IMG ?= ghcr.io/jettisonproj/jettison-controller:231d2e98200cbbaae701f17d470e13db485b0590
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
