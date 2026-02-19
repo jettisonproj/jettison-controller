@@ -78,10 +78,11 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 						},
 						// The repo org and application namespace match
 						SourceNamespaces: []string{repoOrg},
-						ClusterResourceWhitelist: []metav1.GroupKind{
+						ClusterResourceWhitelist: []cdv1.ClusterResourceRestrictionItem{
 							{
 								Group: "*",
 								Kind:  "*",
+								Name:  fmt.Sprintf("%s-*", repoOrg),
 							},
 						},
 					},
