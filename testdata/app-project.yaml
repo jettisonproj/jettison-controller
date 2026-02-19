@@ -11,3 +11,6 @@ spec:
     namespace: jettisonproj
   sourceNamespaces:
   - jettisonproj
+  clusterResourceWhitelist:
+  - group: "*"
+    kind: "*"
