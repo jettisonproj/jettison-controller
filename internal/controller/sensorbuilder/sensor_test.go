@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"

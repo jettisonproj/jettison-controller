@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	eventscommon "github.com/argoproj/argo-events/pkg/apis/common"
-	eventsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	workflows "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +31,7 @@ func getSensorTriggers(flow *v1alpha1.Flow, flowTriggers []v1alpha1base.BaseTrig
 				Name: "flow-trigger",
 				K8s: &eventsv1.StandardK8STrigger{
 					Source: &eventsv1.ArtifactLocation{
-						Resource: &eventscommon.Resource{
+						Resource: &eventsv1.K8SResource{
 							Value: workflowTemplate,
 						},
 					},

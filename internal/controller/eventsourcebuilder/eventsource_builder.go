@@ -1,8 +1,7 @@
 package eventsourcebuilder
 
 import (
-	eventsource "github.com/argoproj/argo-events/pkg/apis/eventsource"
-	eventsv1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -72,7 +71,7 @@ var (
 
 	eventSource = eventsv1.EventSource{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       eventsource.Kind,
+			Kind:       eventsv1.EventSourceGroupVersionKind.Kind,
 			APIVersion: eventsv1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
