@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/argoproj/argo-cd/v3 v3.3.1
 	github.com/argoproj/argo-events v1.9.10
-	github.com/argoproj/argo-rollouts v1.8.2
+	github.com/argoproj/argo-rollouts v1.8.4
 	github.com/argoproj/argo-workflows/v3 v3.6.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.17.0
 	github.com/go-logr/logr v1.4.3

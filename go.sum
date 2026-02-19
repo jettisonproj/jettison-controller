@@ -50,6 +50,8 @@ github.com/argoproj/argo-events v1.9.10 h1:zVC4J0sHUZd1LRRYks8XsVnx0M50KCZ1MuYoq
 github.com/argoproj/argo-events v1.9.10/go.mod h1:ftbm7Gj8ycNxw56YVTY9xDUAJDa733jWBaL0M0qXz28=
 github.com/argoproj/argo-rollouts v1.8.2 h1:DBvkYvFTEH/zJ9MxJerqz/NMWEgZcHY5vxztyCBS5ak=
 github.com/argoproj/argo-rollouts v1.8.2/go.mod h1:xZIw+dg+B4IqMv5fNPenIBUiPb9xljL2st1xxkjhaC0=
+github.com/argoproj/argo-rollouts v1.8.4 h1:yRoN6/mNtb9H2VHhL09ZvF3ZfajerOrKB3EhgIGoz6c=
+github.com/argoproj/argo-rollouts v1.8.4/go.mod h1:/J99JlgiXreVVjJUIXTsguvubJRNBtYKAhIrx0UdaS8=
 github.com/argoproj/argo-workflows/v3 v3.6.0 h1:EMg//kaW6kaf9fDeBR5H8zYjdUoepgI9CnRzmYCs+ds=
 github.com/argoproj/argo-workflows/v3 v3.6.0/go.mod h1:sOheETInaxdfkgQIko48KeYNhmYfnFmeT4lR7ir1u+Q=
 github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627 h1:yntvA+uaFz62HRfWGGwlvs4ErdxoLQjCpDXufdEt2FI=
