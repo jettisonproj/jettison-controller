@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	eventsv1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
+	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	"github.com/stretchr/testify/require"
 
 	"github.com/jettisonproj/jettison-controller/internal/controller/eventsourcebuilder"

@@ -21,8 +21,7 @@ import (
 	"fmt"
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	eventsourcev1 "github.com/argoproj/argo-events/pkg/apis/eventsource/v1alpha1"
-	sensorsv1 "github.com/argoproj/argo-events/pkg/apis/sensor/v1alpha1"
+	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v74/github"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -255,7 +254,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// Reconcile the Sensor
-	existingSensor := &sensorsv1.Sensor{}
+	existingSensor := &eventsv1.Sensor{}
 	err = r.Get(ctx, req.NamespacedName, existingSensor)
 	if err != nil && !apierrors.IsNotFound(err) {
 		reconcilerlog.Error(err, "failed to check for existing Sensor")
@@ -331,7 +330,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	if !foundSyncedRepoOrg || !syncedRepoNames[repoName] {
 
 		eventSource := eventsourcebuilder.BuildEventSource(repoOrg, repoName)
-		existingEventSource := &eventsourcev1.EventSource{}
+		existingEventSource := &eventsv1.EventSource{}
 		existingNamespaceName := client.ObjectKey{
 			Namespace: eventSource.ObjectMeta.Namespace,
 			Name:      eventSource.ObjectMeta.Name,
@@ -409,7 +408,7 @@ func (r *FlowReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// todo could consider adding additional child objects (e.g. application)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.Flow{}).
-		Owns(&sensorsv1.Sensor{}).
+		Owns(&eventsv1.Sensor{}).
 		Named("flow").
 		Complete(r)
 }
@@ -444,7 +443,7 @@ func getTriggerRepoUrl(
 }
 
 func mergeOwnedRepos(
-	eventSource *eventsourcev1.EventSource,
+	eventSource *eventsv1.EventSource,
 	repoOrg string,
 	repoName string,
 ) bool {
@@ -465,7 +464,7 @@ func mergeOwnedRepos(
 		}
 	}
 
-	ownedRepos = append(ownedRepos, eventsourcev1.OwnedRepositories{
+	ownedRepos = append(ownedRepos, eventsv1.OwnedRepositories{
 		Owner: repoOrg,
 		Names: []string{repoName},
 	})
