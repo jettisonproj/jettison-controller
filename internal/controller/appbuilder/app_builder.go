@@ -78,6 +78,12 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 						},
 						// The repo org and application namespace match
 						SourceNamespaces: []string{repoOrg},
+						ClusterResourceWhitelist: []metav1.GroupKind{
+							{
+								Group: "*",
+								Kind:  "*",
+							},
+						},
 					},
 				}
 				projects = append(projects, project)
