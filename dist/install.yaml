@@ -453,7 +453,7 @@ spec:
         - --workflow-mysql-address=root:root@tcp(mysql.mysql:3306)/argo
         command:
         - /manager
-        image: ghcr.io/jettisonproj/jettison-controller:c3e6598c9eb105cc2d0a778d605b2088a526420b
+        image: ghcr.io/jettisonproj/jettison-controller:231d2e98200cbbaae701f17d470e13db485b0590
         livenessProbe:
           httpGet:
             path: /healthz
