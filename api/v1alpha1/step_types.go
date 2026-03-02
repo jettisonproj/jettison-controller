@@ -101,4 +101,8 @@ type ArgoCDStep struct {
 	// Defaults to "main"
 	// +optional
 	BaseRef *string `json:"baseRef,omitempty"`
+	// Optional, if non-blank, this effectively pauses the step
+	// by disabling the automated syncs
+	// +optional
+	PausedReason *string `json:"pausedReason,omitempty"`
 }
