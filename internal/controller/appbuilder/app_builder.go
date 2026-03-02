@@ -30,12 +30,9 @@ var (
 		Kind:       cdv1.ApplicationSchemaGroupVersionKind.Kind,
 		APIVersion: cdv1.SchemeGroupVersion.String(),
 	}
-	syncPolicy = &cdv1.SyncPolicy{
-		Automated: &cdv1.SyncPolicyAutomated{
-			Prune:    true,
-			SelfHeal: true,
-		},
-		SyncOptions: []string{syncOption},
+	retryStrategy = &cdv1.RetryStrategy{
+		// Use the latest revision on retry instead of the initial one
+		Refresh: true,
 	}
 )
 
@@ -95,6 +92,7 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 			if !appNames[appName] {
 				appNames[appName] = true
 
+				stepEnabled := step.PausedReason == nil || *step.PausedReason == ""
 				application := &cdv1.Application{
 					TypeMeta: applicationTypeMeta,
 					ObjectMeta: metav1.ObjectMeta{
@@ -115,8 +113,16 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 							Namespace: repoOrg,
 						},
 						// The repo org and project match
-						Project:    repoOrg,
-						SyncPolicy: syncPolicy,
+						Project: repoOrg,
+						SyncPolicy: &cdv1.SyncPolicy{
+							Automated: &cdv1.SyncPolicyAutomated{
+								Prune:    true,
+								SelfHeal: true,
+								Enabled:  &stepEnabled,
+							},
+							SyncOptions: []string{syncOption},
+							Retry:       retryStrategy,
+						},
 					},
 				}
 				applications = append(applications, application)
