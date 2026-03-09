@@ -83,6 +83,12 @@ func parseStep(rawStep RawMessage) (v1alpha1base.BaseStep, error) {
 			return nil, fmt.Errorf("failed to parse ArgoCDStep: %s", err)
 		}
 		return &argoCDStep, nil
+	case gitHubCreatePrStepSource:
+		gitHubCreatePrStep := GitHubCreatePrStep{}
+		if err := json.Unmarshal(rawStep.RawMessage, &gitHubCreatePrStep); err != nil {
+			return nil, fmt.Errorf("failed to parse GitHubCreatePrStep: %s", err)
+		}
+		return &gitHubCreatePrStep, nil
 	default:
 		return nil, fmt.Errorf("unknown stepSource: %s should be one of: %s", baseStep.StepSource, strings.Join(stepSources, ", "))
 	}

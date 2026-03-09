@@ -340,6 +340,61 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				When:    getWhen(*step.StepName, stepsByName),
 			}
 			dagTasks = append(dagTasks, dagTask)
+		case *v1alpha1.GitHubCreatePrStep:
+			dockerfilePath, err := getDockerfilePathDependency(*step.StepName, stepsByName)
+			if err != nil {
+				return nil, nil, "", fmt.Errorf("error finding dockerfile dependency for step %s: %s", *step.StepName, err)
+			}
+			dockerfileDir := getDockerfileDir(dockerfilePath)
+
+			repoOrg, repoName, err := gitutil.GetRepoOrgName(step.RepoUrl)
+			if err != nil {
+				return nil, nil, "", fmt.Errorf("error parsing create pr step repo url %s: %s", step.RepoUrl, err)
+			}
+
+			dagTask := workflowsv1.DAGTask{
+				Name: *step.StepName,
+				Arguments: workflowsv1.Arguments{
+					Parameters: []workflowsv1.Parameter{
+						{
+							Name:  "target-repo",
+							Value: workflowsv1.AnyStringPtr(step.RepoUrl),
+						},
+						{
+							Name:  "target-repo-short-name",
+							Value: workflowsv1.AnyStringPtr(fmt.Sprintf("%s/%s", repoOrg, repoName)),
+						},
+						{
+							Name:  "target-branch",
+							Value: workflowsv1.AnyStringPtr(*step.BaseRef),
+						},
+						{
+							Name:  "file-paths",
+							Value: workflowsv1.AnyStringPtr(strings.Join(step.FilePaths, " ")),
+						},
+						{
+							Name:  "image-repo",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.repo-short}}"),
+						},
+						{
+							Name:  "build-revision",
+							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.revision}}"),
+						},
+						{
+							Name:  "dockerfile-dir",
+							Value: workflowsv1.AnyStringPtr(dockerfileDir),
+						},
+					},
+				},
+				TemplateRef: &workflowsv1.TemplateRef{
+					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
+					Template:     workflowtemplates.GitHubCreatePrTemplate.Name,
+					ClusterScope: true,
+				},
+				Depends: getDepends(step.DependsOn),
+				When:    getWhen(*step.StepName, stepsByName),
+			}
+			dagTasks = append(dagTasks, dagTask)
 		default:
 			return nil, nil, "", fmt.Errorf("unknown Flow step type: %T", step)
 		}

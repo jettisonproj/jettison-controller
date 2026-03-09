@@ -223,6 +223,54 @@ spec:
     synchronization:
       mutexes:
         - name: "{{inputs.parameters.deploy-repo}}/{{inputs.parameters.resource-path}}"
+  # deploy-step-create-pr
+  # Create a GitHub PR after substituting the image tags in the specified
+  # repo and files
+  - name: deploy-step-create-pr
+    inputs:
+      parameters:
+      - name: target-repo
+      - name: target-repo-short-name
+      - name: target-branch
+      # github-app-id - app id used for updating the deploy-repo
+      - name: github-app-id
+        value: "1682308"
+      # github-app-user-id - app id used for updating the deploy-repo
+      - name: github-app-user-id
+        value: "223206062"
+      # github-app-user-name - app user name for updating the deploy repo
+      - name: github-app-user-name
+        value: "jettisonproj[bot]"
+      - name: file-paths
+      - name: image-repo
+      - name: build-revision
+      - name: dockerfile-dir
+      - name: image-registry
+        value: "ghcr.io/"
+    container:
+      image: "ghcr.io/jettisonproj/deploy-steps/create-pr:8b8c65d18de0d3b6fa9b908fbed5cca01eb32e85"
+      args:
+      - "./deploy-step-create-pr.sh"
+      - "{{inputs.parameters.target-repo}}"
+      - "{{inputs.parameters.target-repo-short-name}}"
+      - "{{inputs.parameters.target-branch}}"
+      - "{{inputs.parameters.github-app-id}}"
+      - "{{inputs.parameters.github-app-user-id}}"
+      - "{{inputs.parameters.github-app-user-name}}"
+      - "/github-key/private-key.pem"
+      - "{{inputs.parameters.file-paths}}"
+      - "{{inputs.parameters.image-registry}}"
+      - "{{inputs.parameters.image-repo}}"
+      - "{{inputs.parameters.build-revision}}"
+      - "{{inputs.parameters.dockerfile-dir}}"
+      volumeMounts:
+      - name: github-key
+        mountPath: /github-key
+    # Mount the configuration so we can push to git.
+    volumes:
+    - name: github-key
+      secret:
+        secretName: github-key
   - name: deploy-step-github-check-complete
     activeDeadlineSeconds: 300 # 5m
     inputs:

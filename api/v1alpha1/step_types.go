@@ -9,6 +9,7 @@ const (
 	dockerBuildTestStepSource        = "DockerBuildTest"
 	dockerBuildTestPublishStepSource = "DockerBuildTestPublish"
 	argoCDStepSource                 = "ArgoCD"
+	gitHubCreatePrStepSource         = "GitHubCreatePR"
 )
 
 var (
@@ -16,6 +17,7 @@ var (
 		dockerBuildTestStepSource,
 		dockerBuildTestPublishStepSource,
 		argoCDStepSource,
+		gitHubCreatePrStepSource,
 	}
 )
 
@@ -105,4 +107,20 @@ type ArgoCDStep struct {
 	// by disabling the automated syncs
 	// +optional
 	PausedReason *string `json:"pausedReason,omitempty"`
+}
+
+// Create GitHub PR after substituting the image tag in the specified repo and files
+type GitHubCreatePrStep struct {
+	BaseStepFields
+
+	// The url of the repo to update. For example: https://github.com/jettisonproj/deploy-steps.git
+	// todo need to ensure this is in canonical format
+	RepoUrl string `json:"repoUrl"`
+	// Optional base ref of the repo to update. This is typically the default
+	// branch name such as "main" or "master"
+	// Defaults to "main"
+	// +optional
+	BaseRef *string `json:"baseRef,omitempty"`
+	// The file paths to substitute the image tags in
+	FilePaths []string `json:"filePaths"`
 }
