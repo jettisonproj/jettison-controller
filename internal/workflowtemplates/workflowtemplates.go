@@ -30,6 +30,8 @@ const (
 	deployStepsDockerBuildDiffCheckImage = "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
 	// Deploy Step Image for Docker Build
 	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:da9f01d7adad4beb879ba3f50c3d7791ebf902b7"
+	// Deploy Step Image for GitHub PR Creation
+	deployStepsGitHubCreatePr = "ghcr.io/jettisonproj/deploy-steps/create-pr:8b8c65d18de0d3b6fa9b908fbed5cca01eb32e85"
 )
 
 var (
@@ -471,6 +473,100 @@ var (
 		},
 	}
 
+	// deploy-step-create-pr
+	// Create a PR in a specified repo after substituting the image tag
+	GitHubCreatePrTemplate = workflowsv1.Template{
+		Name: "deploy-step-create-pr",
+		Inputs: workflowsv1.Inputs{
+			Parameters: []workflowsv1.Parameter{
+				// target-repo - the repo containing the files to update
+				{
+					Name: "target-repo",
+				},
+				// target-repo-short-name - the repo short name. e.g. <repo-org>/<repo-name>
+				{
+					Name: "target-repo-short-name",
+				},
+				// target-branch - the target-repo branch to update
+				{
+					Name: "target-branch",
+				},
+				// github-app-id - app id used for updating the target-repo
+				{
+					Name:  "github-app-id",
+					Value: workflowsv1.AnyStringPtr(githubAppId),
+				},
+				// github-app-user-id - app id used for updating the target-repo
+				{
+					Name:  "github-app-user-id",
+					Value: workflowsv1.AnyStringPtr(githubAppUserId),
+				},
+				// github-app-user-name - app user name for updating the deploy repo
+				{
+					Name:  "github-app-user-name",
+					Value: workflowsv1.AnyStringPtr(githubAppUserName),
+				},
+				// file-paths - the file paths to substitute the image tags in
+				{
+					Name: "file-paths",
+				},
+				// image-repo - the image repo prefix which will be updated in the files
+				{
+					Name: "image-repo",
+				},
+				// build-revision - the build revision which will be updated in the files. e.g. image tag
+				{
+					Name: "build-revision",
+				},
+				// dockerfile-dir - the image repo suffix which will be updated in the files
+				{
+					Name: "dockerfile-dir",
+				},
+				// image-registry - the image registry used for updating images
+				{
+					Name:  "image-registry",
+					Value: workflowsv1.AnyStringPtr(imageRegistry),
+				},
+			},
+		},
+		Container: &corev1.Container{
+			Image: deployStepsGitHubCreatePr,
+			Args: []string{
+				"./deploy-step-create-pr.sh",                   // 0
+				"{{inputs.parameters.target-repo}}",            // 1
+				"{{inputs.parameters.target-repo-short-name}}", // 2
+				"{{inputs.parameters.target-branch}}",          // 3
+				"{{inputs.parameters.github-app-id}}",          // 4
+				"{{inputs.parameters.github-app-user-id}}",     // 5
+				"{{inputs.parameters.github-app-user-name}}",   // 6
+				"/github-key/private-key.pem",                  // 7
+				"{{inputs.parameters.file-paths}}",             // 8
+				"{{inputs.parameters.image-registry}}",         // 9
+				"{{inputs.parameters.image-repo}}",             // 10
+				"{{inputs.parameters.build-revision}}",         // 11
+				"{{inputs.parameters.dockerfile-dir}}",         // 12
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					// Mount the configuration so we can push to github
+					Name:      "github-key",
+					MountPath: "/github-key",
+				},
+			},
+		},
+		Volumes: []corev1.Volume{
+			// Mount the configuration so we can push to github
+			{
+				Name: "github-key",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: "github-key",
+					},
+				},
+			},
+		},
+	}
+
 	// deploy-step-github-check-complete
 	// Completes a GitHub check for the specified commit.
 	GitHubCheckCompleteTemplate = workflowsv1.Template{
@@ -553,6 +649,7 @@ var (
 				DockerBuildTestTemplate,
 				DockerBuildTestPublishTemplate,
 				ArgoCDTemplate,
+				GitHubCreatePrTemplate,
 				GitHubCheckCompleteTemplate,
 			},
 		},

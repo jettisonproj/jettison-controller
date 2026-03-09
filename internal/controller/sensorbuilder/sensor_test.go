@@ -39,6 +39,10 @@ func TestBuildSensor(t *testing.T) {
 			"github-push-maximal.yaml",
 			"github-push-maximal-sensor.yaml",
 		},
+		{
+			"github-create-pr.yaml",
+			"github-create-pr-sensor.yaml",
+		},
 	}
 
 	for _, tc := range testCases {

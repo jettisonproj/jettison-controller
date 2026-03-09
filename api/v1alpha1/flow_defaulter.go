@@ -82,6 +82,11 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 				step.BaseRef = new(string)
 				*step.BaseRef = defaultBaseRef
 			}
+		case *GitHubCreatePrStep:
+			if step.BaseRef == nil {
+				step.BaseRef = new(string)
+				*step.BaseRef = defaultBaseRef
+			}
 		default:
 			return fmt.Errorf("unknown step type: %T", step)
 		}

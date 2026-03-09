@@ -197,3 +197,63 @@ func TestFlowPush(t *testing.T) {
 		})
 	}
 }
+
+func TestFlowCreatePR(t *testing.T) {
+	flowFilePath := "github-create-pr.yaml"
+	var expectedActiveDeadlineSeconds int64 = 3600
+	expectedBaseRef := "main"
+	expectedDockerfilePath := "argocd/Dockerfile"
+	expectedDockerfileContextDir := "argocd"
+	expectedVolumesLen := 0
+	expectedVolumeMountsLen := 0
+
+	yamlFilePath := fmt.Sprintf("%s/%s", testdataDir, flowFilePath)
+	flow, err := testutil.ParseYaml[v1alpha1.Flow](yamlFilePath)
+	require.Nilf(t, err, "failed to parse flow: %s", flowFilePath)
+
+	flowTriggers, flowSteps, err := flow.PreProcessFlow()
+	require.Nil(t, err, "failed to process flow")
+
+	require.Equal(t, "workflows.jettisonproj.io/v1alpha1", flow.TypeMeta.APIVersion)
+	require.Equal(t, "Flow", flow.TypeMeta.Kind)
+	require.Equal(t, "deploy-steps-github-push", flow.ObjectMeta.Name)
+
+	require.Equal(t, expectedActiveDeadlineSeconds, *flow.Spec.ActiveDeadlineSeconds)
+
+	require.Len(t, flowTriggers, 1)
+	flowTrigger := flowTriggers[0]
+	require.Equal(t, "github-push", flowTrigger.GetTriggerName())
+	require.Equal(t, "GitHubPush", flowTrigger.GetTriggerSource())
+
+	pushTrigger, ok := flowTrigger.(*v1alpha1.GitHubPushTrigger)
+	require.Truef(t, ok, "failed to parse type as *GitHubPushTrigger: %T", flowTrigger)
+	require.Equal(t, "https://github.com/jettisonproj/deploy-steps.git", pushTrigger.RepoUrl)
+	require.Equal(t, expectedBaseRef, *pushTrigger.BaseRef)
+
+	require.Len(t, flowSteps, 2)
+
+	// Step 0 - Publish
+	require.Equal(t, "deploy-step-argocd-publish", flowSteps[0].GetStepName())
+	require.Equal(t, "DockerBuildTestPublish", flowSteps[0].GetStepSource())
+	require.Empty(t, flowSteps[0].GetDependsOn())
+
+	buildStep, ok := flowSteps[0].(*v1alpha1.DockerBuildTestPublishStep)
+	require.Truef(t, ok, "failed to parse step 0 as *DockerBuildTestPublishStep: %T", flowSteps[0])
+	require.Equal(t, expectedDockerfilePath, *buildStep.DockerfilePath)
+	require.Equal(t, expectedDockerfileContextDir, *buildStep.DockerContextDir)
+	require.Equal(t, expectedVolumesLen, len(buildStep.Volumes))
+	require.Equal(t, expectedVolumeMountsLen, len(buildStep.VolumeMounts))
+
+	// Step 1 - Create PR
+	require.Equal(t, "deploy-step-argocd-bump", flowSteps[1].GetStepName())
+	require.Equal(t, "GitHubCreatePR", flowSteps[1].GetStepSource())
+	require.Equal(t, []string{"deploy-step-argocd-publish"}, flowSteps[1].GetDependsOn())
+
+	createPrStep, ok := flowSteps[1].(*v1alpha1.GitHubCreatePrStep)
+	require.Truef(t, ok, "failed to parse step 1 as *ArgoCDStep: %T", flowSteps[1])
+	require.Equal(t, "https://github.com/jettisonproj/jettison-controller.git", createPrStep.RepoUrl)
+	require.Len(t, createPrStep.FilePaths, 2)
+	require.Equal(t, "p1", createPrStep.FilePaths[0])
+	require.Equal(t, "p2", createPrStep.FilePaths[1])
+	require.Equal(t, expectedBaseRef, *createPrStep.BaseRef)
+}

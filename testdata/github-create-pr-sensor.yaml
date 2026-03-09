@@ -1,0 +1,172 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Sensor
+metadata:
+  name: deploy-steps-github-push
+spec:
+  dependencies:
+  - name: github-event-dep
+    eventSourceName: github
+    eventName: ghwebhook
+    filters:
+      data:
+      - path: headers.X-Github-Event
+        type: string
+        value:
+        - push
+      - path: body.ref
+        type: string
+        value:
+        - refs/heads/main
+      - path: body.repository.clone_url
+        type: string
+        value:
+        - https://github.com/jettisonproj/deploy-steps.git
+  triggers:
+  - template:
+      name: flow-trigger
+      k8s:
+        source:
+          resource:
+            apiVersion: argoproj.io/v1alpha1
+            kind: Workflow
+            metadata:
+              generateName: deploy-steps-github-push-
+            spec:
+              templates:
+              - name: main
+                inputs:
+                  parameters:
+                  - name: repo
+                  - name: revision
+                  - name: repo-short
+                  - name: revision-ref
+                  - name: revision-title
+                  - name: revision-author
+                dag:
+                  tasks:
+                  - arguments:
+                      parameters:
+                      - name: repo-short
+                        value: '{{inputs.parameters.repo-short}}'
+                      - name: event-type
+                        value: commit
+                      - name: revision
+                        value: '{{inputs.parameters.revision}}'
+                    name: github-check-start
+                    templateRef:
+                      clusterScope: true
+                      name: cicd-templates
+                      template: deploy-step-github-check-start
+                  - arguments:
+                      parameters:
+                      - name: repo
+                        value: '{{inputs.parameters.repo}}'
+                      - name: revision
+                        value: '{{inputs.parameters.revision}}'
+                      - name: revision-ref
+                        value: '{{inputs.parameters.revision-ref}}'
+                      - name: dockerfile-path
+                        value: argocd/Dockerfile
+                      - name: docker-context-dir
+                        value: argocd
+                      - name: image-repo
+                        value: '{{inputs.parameters.repo-short}}'
+                      - name: dockerfile-dir
+                        value: /argocd
+                    name: deploy-step-argocd-publish
+                    templateRef:
+                      clusterScope: true
+                      name: cicd-templates
+                      template: docker-build-test-publish
+                  - arguments:
+                      parameters:
+                      - name: target-repo
+                        value: https://github.com/jettisonproj/jettison-controller.git
+                      - name: target-repo-short-name
+                        value: jettisonproj/jettison-controller
+                      - name: target-branch
+                        value: main
+                      - name: file-paths
+                        value: p1 p2
+                      - name: image-repo
+                        value: '{{inputs.parameters.repo-short}}'
+                      - name: build-revision
+                        value: '{{inputs.parameters.revision}}'
+                      - name: dockerfile-dir
+                        value: /argocd
+                    depends: deploy-step-argocd-publish.Succeeded
+                    name: deploy-step-argocd-bump
+                    templateRef:
+                      clusterScope: true
+                      name: cicd-templates
+                      template: deploy-step-create-pr
+                    when: '{{tasks.deploy-step-argocd-publish.outputs.parameters.docker-build-commit-status}}
+                      != Skipped'
+              arguments:
+                parameters:
+                - name: repo
+                - name: revision
+                - name: repo-short
+                - name: revision-ref
+                - name: revision-title
+                - name: revision-author
+              entrypoint: main
+              activeDeadlineSeconds: 3600
+              hooks:
+                exit: # Exit handler
+                  arguments:
+                    parameters:
+                    - name: repo-short
+                      value: '{{workflow.parameters.repo-short}}'
+                    - name: event-type
+                      value: commit
+                    - name: check-run-id
+                      value: '{{workflow.outputs.parameters.check-run-id}}'
+                    - name: workflow-status
+                      value: '{{workflow.status}}'
+                  templateRef:
+                    clusterScope: true
+                    name: cicd-templates
+                    template: deploy-step-github-check-complete
+              serviceAccountName: deploy-step-executor
+        operation: create
+        parameters:
+        # Parameter 0: Set the build url in the workflow
+        - dest: spec.arguments.parameters.0.value
+          src:
+            dataKey: body.repository.clone_url
+            dependencyName: github-event-dep
+        # Parameter 1: Set the revision to check out
+        - dest: spec.arguments.parameters.1.value
+          src:
+            dataKey: body.after
+            dependencyName: github-event-dep
+        # Parameter 2: Set the repo full_name in the workflow
+        - dest: spec.arguments.parameters.2.value
+          src:
+            dataKey: body.repository.full_name
+            dependencyName: github-event-dep
+        # Parameter 3: Set the revision ref
+        - dest: spec.arguments.parameters.3.value
+          src:
+            dataKey: body.ref
+            dependencyName: github-event-dep
+        # Parameter 4: Set the revision title
+        - dest: spec.arguments.parameters.4.value
+          src:
+            dataTemplate: '{{ .Input.body.head_commit.message | splitList "\n" | first
+              | trunc 72 }}'
+            dependencyName: github-event-dep
+        # Parameter 5: Set the revision author
+        - dest: spec.arguments.parameters.5.value
+          src:
+            dataKey: body.pusher.name
+            dependencyName: github-event-dep
+        # Append short sha to dynamically assign workflow name <rollouts-demo-commit-2c065a>
+        - dest: metadata.generateName
+          operation: append
+          src:
+            dataTemplate: '{{ .Input.body.after | substr 0 7 }}-'
+            dependencyName: github-event-dep
+  template:
+    serviceAccountName: operate-workflow-sa

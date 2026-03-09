@@ -1,0 +1,28 @@
+#
+# Push flow for jettisonproj/deploy-steps
+#
+apiVersion: workflows.jettisonproj.io/v1alpha1
+kind: Flow
+metadata:
+  name: deploy-steps-github-push
+spec:
+  # activeDeadlineSeconds: 3600 # Defaults to 3600 (1h) for push build
+  triggers:
+  - triggerName: github-push
+    triggerSource: GitHubPush
+    repoUrl: "https://github.com/jettisonproj/deploy-steps.git"
+    # baseRef: "main" # Defaults to main
+  steps:
+  - stepName: deploy-step-argocd-publish
+    stepSource: DockerBuildTestPublish
+    dockerContextDir: "argocd" # Defaults to "" (root)
+    # dockerfilePath: Dockerfile # Defaults to <dockerContextDir>/Dockerfile
+  - stepName: deploy-step-argocd-bump
+    stepSource: GitHubCreatePR
+    repoUrl: "https://github.com/jettisonproj/jettison-controller.git"
+    # baseRef: "main" # Defaults to main
+    filePaths:
+    - "p1"
+    - "p2"
+    dependsOn:
+    - deploy-step-argocd-publish
