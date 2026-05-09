@@ -54,6 +54,19 @@ func (s *BaseStepFields) ApplyDefaults() {
 	}
 }
 
+type DockerBuildArtifact struct {
+	// The path to the build artifact
+	Path string `json:"path"`
+	// The key used for storing the build artifact
+	Key string `json:"key"`
+	// Mark the artifact as optional
+	// By default, the step fails if an artifact path is not found.
+	// If marked as optional, the step will instead continue without
+	// saving the artifact
+	// +optional
+	Optional *bool `json:"optional,omitempty"`
+}
+
 type DockerBuildTestStep struct {
 	BaseStepFields
 
@@ -66,6 +79,9 @@ type DockerBuildTestStep struct {
 	// Defaults to "", which is the root of the repo
 	// +optional
 	DockerContextDir *string `json:"dockerContextDir,omitempty"`
+	// Optional build artifacts to archive.
+	// +optional
+	Artifacts []DockerBuildArtifact `json:"artifacts,omitempty"`
 }
 
 type DockerBuildTestPublishStep struct {
@@ -80,6 +96,9 @@ type DockerBuildTestPublishStep struct {
 	// Defaults to "", which is the root of the repo
 	// +optional
 	DockerContextDir *string `json:"dockerContextDir,omitempty"`
+	// Optional build artifacts to archive.
+	// +optional
+	Artifacts []DockerBuildArtifact `json:"artifacts,omitempty"`
 }
 
 // Deploy using ArgoCD.
