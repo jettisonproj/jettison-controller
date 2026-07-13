@@ -11,8 +11,10 @@ import (
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	toolscache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,6 +53,15 @@ type FlowWatcher struct {
 	// Keeps track of registered websockets
 	conns map[*WebConn]bool
 
+	// Registers a websocket subscription
+	subscribe chan WebConnResourceSubscription
+
+	// Keep track of subscriptions requested by websockets
+	connSubscriptions map[ResourceSubscription]map[*WebConn]bool
+
+	// Sends notification to subscribers
+	notifySubscriptions chan interface{}
+
 	// MySQL workflows are sent as initial resources
 	mysqlWorkflows []workflowsv1.Workflow
 
@@ -65,6 +76,12 @@ type WebConnNotification struct {
 	message interface{}
 }
 
+// Struct containing the data for a websocket to subscribe to resources
+type WebConnResourceSubscription struct {
+	conn                 *WebConn
+	resourceSubscription ResourceSubscription
+}
+
 func (s *FlowWatcher) run() {
 	for {
 		select {
@@ -72,10 +89,14 @@ func (s *FlowWatcher) run() {
 			s.registerConn(conn)
 		case conn := <-s.unregister:
 			s.unregisterConn(conn)
+		case webConnResourceSubscription := <-s.subscribe:
+			s.registerResourceSubscription(webConnResourceSubscription)
 		case message := <-s.notifyAll:
 			for conn := range s.conns {
 				s.notifyConn(conn, message)
 			}
+		case message := <-s.notifySubscriptions:
+			s.notifyResourceSubscriptions(message)
 		case webConnNotification := <-s.notifyOne:
 			conn := webConnNotification.conn
 			message := webConnNotification.message
@@ -215,7 +236,16 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 				panic(err)
 			}
 
-			go s.handleContainerLogMessage(conn, containerLogMessageData)
+			s.handleContainerLogMessage(conn, containerLogMessageData)
+			continue
+		case RESOURCE_SUBSCRIPTION_MESSAGE_TYPE:
+			var resourceSubscription ResourceSubscription
+			if err := json.Unmarshal(webMessage.MessageData, &resourceSubscription); err != nil {
+				conn.log.Error(err, "failed to parse resource subscription message", "message", string(message))
+				panic(err)
+			}
+
+			s.handleResourceSubscriptionMessage(conn, resourceSubscription)
 			continue
 		default:
 			panic(fmt.Errorf("unexpected web message type %s", webMessage.MessageType))
@@ -223,8 +253,49 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 	}
 }
 
+// Register the resource subscription for connection
+func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription WebConnResourceSubscription) {
+	resourceSubscription := webConnResourceSubscription.resourceSubscription
+	conn := webConnResourceSubscription.conn
+	ctx := conn.ctx
+	conn.log.Info("registering resource subscription for connection")
+
+	// Send the initial resources. Currently, only pod subscriptions are supported
+	pods := &corev1.PodList{}
+	listOptions := ctrlclient.ListOptions{
+		Namespace:     resourceSubscription.Namespace,
+		FieldSelector: fields.OneTermEqualSelector(POD_APP_INDEX_KEY, resourceSubscription.Name),
+	}
+	err := s.client.List(ctx, pods, &listOptions)
+	if err != nil {
+		conn.log.Error(err, "failed to get subscription pods for websocket")
+		err = conn.conn.WriteJSON(newWebError(
+			fmt.Sprintf("failed to get subscription pods: %s", err),
+		))
+		if err != nil {
+			conn.log.Error(err, "failed to send error message after failing to get subscription pods")
+		}
+		s.unregister <- conn
+		return
+	}
+	err = conn.conn.WriteJSON(pods)
+	if err != nil {
+		conn.log.Error(err, "failed to send subscription pods for websocket")
+		s.unregister <- conn
+		return
+	}
+
+	// Register the connection to send subscription updates
+	if s.connSubscriptions[resourceSubscription] == nil {
+		s.connSubscriptions[resourceSubscription] = make(map[*WebConn]bool)
+	}
+	s.connSubscriptions[resourceSubscription][conn] = true
+}
+
 // Unregister the connection
 // This should only be called from the channel receiver to prevent concurrent writes
+// Subscriptions are not cleaned up here to avoid look up. Instead, they are cleaned up
+// in the subscription handler
 func (s *FlowWatcher) unregisterConn(conn *WebConn) {
 	conn.log.Info("unregistering connection")
 
@@ -245,6 +316,34 @@ func (s *FlowWatcher) notifyConn(conn *WebConn, message interface{}) {
 	if err != nil {
 		conn.log.Error(err, "failed to notify conn. Closing...")
 		s.unregister <- conn
+	}
+}
+
+// Send the message to the subscribers
+// This should only be called from the channel receiver to prevent concurrent writes
+func (s *FlowWatcher) notifyResourceSubscriptions(obj interface{}) {
+	switch resource := obj.(type) {
+	case *corev1.Pod:
+		resourceSubscription := ResourceSubscription{
+			SubscriptionType: POD_SUBSCRIPTION_TYPE,
+			Namespace:        resource.ObjectMeta.Namespace,
+			Name:             resource.Labels[POD_APP_LABEL_KEY],
+		}
+
+		webConnSubscribers := s.connSubscriptions[resourceSubscription]
+		listResource := corev1.PodList{Items: []corev1.Pod{*resource}}
+		for webConn := range webConnSubscribers {
+			if !s.conns[webConn] {
+				delete(webConnSubscribers, webConn)
+				continue
+			}
+
+			s.notifyConn(webConn, listResource)
+		}
+	default:
+		// unreachable: this is validated in the event handler
+		err := fmt.Errorf("unexpected subscription resource notification type: %T", obj)
+		setupLog.Error(err, "unexpected type in subscription resource notification")
 	}
 }
 
@@ -292,6 +391,25 @@ func (s *FlowWatcher) setupWatcher() error {
 	if err != nil {
 		return fmt.Errorf("failed to init workflow informer for webserver: %s", err)
 	}
+
+	subscriptionResourceEventHandler := toolscache.ResourceEventHandlerDetailedFuncs{
+		AddFunc:    s.onSubscriptionResourceAdd,
+		UpdateFunc: s.onSubscriptionResourceUpdate,
+		DeleteFunc: s.onSubscriptionResourceDelete,
+	}
+
+	// send pod events (only for subscriptions)
+	// The informer currently tracks all pods. If this becomes a performance issue,
+	// the cache could be updated to fetch certain pods (e.g. rollout resources)
+	podInformer, err := s.cache.GetInformer(ctx, &corev1.Pod{})
+	if err != nil {
+		return fmt.Errorf("failed to get pod informer for webserver: %s", err)
+	}
+	_, err = podInformer.AddEventHandler(subscriptionResourceEventHandler)
+	if err != nil {
+		return fmt.Errorf("failed to init pod informer for webserver: %s", err)
+	}
+
 	return nil
 }
 
@@ -479,6 +597,90 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 	default:
 		err := fmt.Errorf("unknown delete event type: %T", obj)
 		setupLog.Error(err, "unknown type in delete event")
+	}
+}
+
+func (s *FlowWatcher) onSubscriptionResourceAdd(obj interface{}, isInInitialList bool) {
+	switch resource := obj.(type) {
+	case *corev1.Pod:
+		setupLog.Info(
+			"got subscription resource add event for Pod",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+			"isInInitialList", isInInitialList,
+		)
+		if resource.Labels[POD_APP_LABEL_KEY] == "" {
+			setupLog.Info(
+				"skip subscription resource add event for Pod due to missing label",
+			)
+			return
+		}
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillPodSchema(resource)
+		}
+		s.notifySubscriptions <- resource
+	default:
+		err := fmt.Errorf("unknown subscription resource add event type: %T", obj)
+		setupLog.Error(err, "unknown type in subscription resource add event")
+	}
+}
+
+func (s *FlowWatcher) onSubscriptionResourceUpdate(oldObj, newObj interface{}) {
+	switch newResource := newObj.(type) {
+	case *corev1.Pod:
+		setupLog.Info(
+			"got subscription resource update event for Pod",
+			"namespace", newResource.Namespace,
+			"name", newResource.Name,
+		)
+		if newResource.Labels[POD_APP_LABEL_KEY] == "" {
+			setupLog.Info(
+				"skip subscription resource update event for Pod due to missing label",
+			)
+			return
+		}
+		if newResource.APIVersion == "" || newResource.Kind == "" {
+			s.backfillPodSchema(newResource)
+		}
+		s.notifySubscriptions <- newResource
+	default:
+		err := fmt.Errorf("unknown subscription resource update event type: %T", newObj)
+		setupLog.Error(err, "unknown type in subscription resource update event")
+	}
+}
+
+func (s *FlowWatcher) onSubscriptionResourceDelete(obj interface{}) {
+	switch resource := obj.(type) {
+	case *corev1.Pod:
+		setupLog.Info(
+			"got subscription resource delete event for Pod",
+			"namespace", resource.Namespace,
+			"name", resource.Name,
+		)
+
+		if resource.Labels[POD_APP_LABEL_KEY] == "" {
+			setupLog.Info(
+				"skip subscription resource delete event for Pod due to missing label",
+			)
+			return
+		}
+
+		// Add a distinguishing delete key
+		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
+		annotationVal := "delete"
+		if resource.Annotations == nil {
+			resource.Annotations = map[string]string{annotationKey: annotationVal}
+		} else {
+			resource.Annotations[annotationKey] = annotationVal
+		}
+
+		if resource.APIVersion == "" || resource.Kind == "" {
+			s.backfillPodSchema(resource)
+		}
+		s.notifySubscriptions <- resource
+	default:
+		err := fmt.Errorf("unknown subscription resource delete event type: %T", obj)
+		setupLog.Error(err, "unknown type in subscription resource delete event")
 	}
 }
 

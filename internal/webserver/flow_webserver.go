@@ -118,16 +118,19 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 
 	// Set up watcher to send updates
 	flowWatcher := &FlowWatcher{
-		client:         s.Client,
-		cache:          s.Cache,
-		scheme:         s.Scheme,
-		notifyAll:      make(chan interface{}),
-		notifyOne:      make(chan WebConnNotification),
-		register:       make(chan *WebConn),
-		unregister:     make(chan *WebConn),
-		conns:          make(map[*WebConn]bool),
-		mysqlWorkflows: mysqlWorkflows,
-		kubeClient:     kubeClient,
+		client:              s.Client,
+		cache:               s.Cache,
+		scheme:              s.Scheme,
+		notifyAll:           make(chan interface{}),
+		notifyOne:           make(chan WebConnNotification),
+		register:            make(chan *WebConn),
+		unregister:          make(chan *WebConn),
+		conns:               make(map[*WebConn]bool),
+		subscribe:           make(chan WebConnResourceSubscription),
+		connSubscriptions:   make(map[ResourceSubscription]map[*WebConn]bool),
+		notifySubscriptions: make(chan interface{}),
+		mysqlWorkflows:      mysqlWorkflows,
+		kubeClient:          kubeClient,
 	}
 	err = flowWatcher.setupWatcher()
 	if err != nil {
