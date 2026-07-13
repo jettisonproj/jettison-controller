@@ -94,8 +94,8 @@ spec:
                           value: '{{inputs.parameters.base-revision}}'
                         - name: base-revision-ref
                           value: '{{inputs.parameters.base-revision-ref}}'
-                      template: dockerbuildtest
-                - name: dockerbuildtest
+                      template: docker-build-test0
+                - name: docker-build-test0
                   inputs:
                     parameters:
                     - name: repo
@@ -152,6 +152,17 @@ spec:
                     - name: docker-build-pr-status
                       valueFrom:
                         path: /workspace/docker-build-pr-status.txt
+                    artifacts:
+                    - name: artifact0
+                      path: /home/node/tests/e2e/playwright-report
+                      s3:
+                        key: "workflow-artifacts/{{workflow.name}}/{{pod.name}}/playwright-report.tar.gz"
+                      optional: true
+                    - name: artifact1
+                      path: /home/node/tests/e2e/test-results
+                      s3:
+                        key: "workflow-artifacts/{{workflow.name}}/{{pod.name}}/test-results.tar.gz"
+                      optional: true
                 entrypoint: main
                 arguments:
                   parameters:

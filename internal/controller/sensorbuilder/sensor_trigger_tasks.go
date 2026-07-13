@@ -19,6 +19,7 @@ import (
 const (
 	commitTriggerType = "commit"
 	prTriggerType     = "PR"
+	artifactKeyPrefix = "workflow-artifacts/{{workflow.name}}/{{pod.name}}"
 )
 
 func getInitialDAGTasks(flowTriggers []v1alpha1base.BaseTrigger) ([]workflowsv1.DAGTask, string, error) {
@@ -153,7 +154,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				Depends: getDepends(step.DependsOn),
 			}
 
-			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 {
+			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 && len(step.Artifacts) == 0 {
 				dagTask.TemplateRef = &workflowsv1.TemplateRef{
 					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
 					Template:     workflowtemplates.DockerBuildTestTemplate.Name,
@@ -165,8 +166,8 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				// volumeMounts of the WorkflowTemplate, so generate the template here
 				// This should be kept in sync with the workflowtemplates
 				// See: https://github.com/argoproj/argo-workflows/issues/6677
-				templateName := strings.ToLower(*step.StepName)
 				template := workflowtemplates.DockerBuildTestTemplate
+				templateName := fmt.Sprintf("%s%d", template.Name, i)
 				template.Name = templateName
 
 				// Override (append) template volumes
@@ -190,6 +191,23 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					template.ContainerSet.Containers[0].VolumeMounts,
 					step.VolumeMounts,
 				)
+
+				// Override (append) artifacts
+				var stepArtifacts []workflowsv1.Artifact
+				for i := range step.Artifacts {
+					stepArtifact := workflowsv1.Artifact{
+						Name: fmt.Sprintf("artifact%d", i),
+						Path: step.Artifacts[i].Path,
+						ArtifactLocation: workflowsv1.ArtifactLocation{
+							S3: &workflowsv1.S3Artifact{
+								Key: getArtifactKey(step.Artifacts[i].Key),
+							},
+						},
+						Optional: step.Artifacts[i].Optional != nil && *step.Artifacts[i].Optional,
+					}
+					stepArtifacts = append(stepArtifacts, stepArtifact)
+				}
+				template.Outputs.Artifacts = slices.Concat(template.Outputs.Artifacts, stepArtifacts)
 
 				// Add inline template
 				additionalTemplates = append(additionalTemplates, template)
@@ -234,7 +252,7 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				},
 				Depends: getDepends(step.DependsOn),
 			}
-			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 {
+			if len(step.Volumes) == 0 && len(step.VolumeMounts) == 0 && len(step.Artifacts) == 0 {
 				dagTask.TemplateRef = &workflowsv1.TemplateRef{
 					Name:         workflowtemplates.CICDTemplate.ObjectMeta.Name,
 					Template:     workflowtemplates.DockerBuildTestPublishTemplate.Name,
@@ -246,8 +264,8 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 				// volumeMounts of the WorkflowTemplate, so generate the template here
 				// This should be kept in sync with the workflowtemplates
 				// See: https://github.com/argoproj/argo-workflows/issues/6677
-				templateName := strings.ToLower(*step.StepName)
 				template := workflowtemplates.DockerBuildTestPublishTemplate
+				templateName := fmt.Sprintf("%s%d", template.Name, i)
 				template.Name = templateName
 
 				// Override (append) template volumes
@@ -271,6 +289,23 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					template.ContainerSet.Containers[0].VolumeMounts,
 					step.VolumeMounts,
 				)
+
+				// Override (append) artifacts
+				var stepArtifacts []workflowsv1.Artifact
+				for i := range step.Artifacts {
+					stepArtifact := workflowsv1.Artifact{
+						Name: fmt.Sprintf("artifact%d", i),
+						Path: step.Artifacts[i].Path,
+						ArtifactLocation: workflowsv1.ArtifactLocation{
+							S3: &workflowsv1.S3Artifact{
+								Key: getArtifactKey(step.Artifacts[i].Key),
+							},
+						},
+						Optional: step.Artifacts[i].Optional != nil && *step.Artifacts[i].Optional,
+					}
+					stepArtifacts = append(stepArtifacts, stepArtifact)
+				}
+				template.Outputs.Artifacts = slices.Concat(template.Outputs.Artifacts, stepArtifacts)
 
 				// Add inline template
 				additionalTemplates = append(additionalTemplates, template)
@@ -465,4 +500,10 @@ func getDepends(dependsOn []string) string {
 	}
 
 	return strings.Join(succeededDependsOn, " && ")
+}
+
+// Get the key that will be specified for the artifact
+// See https://argo-workflows.readthedocs.io/en/latest/key-only-artifacts/
+func getArtifactKey(key string) string {
+	return fmt.Sprintf("%s/%s", artifactKeyPrefix, key)
 }

@@ -104,7 +104,7 @@ spec:
                         - name: dockerfile-dir
                           value: /subdir
                       name: docker-build-test-publish
-                      template: docker-build-test-publish
+                      template: docker-build-test-publish0
                     - arguments:
                         parameters:
                         - name: deploy-repo
@@ -246,7 +246,7 @@ spec:
                     - name: dockerfile-dir
                     - name: image-registry
                       value: ghcr.io/
-                  name: docker-build-test-publish
+                  name: docker-build-test-publish0
                   volumes:
                   - name: docker-build-commit-workspace
                     emptyDir: {}
@@ -261,6 +261,17 @@ spec:
                     - name: docker-build-commit-status
                       valueFrom:
                         path: /workspace/docker-build-commit-status.txt
+                    artifacts:
+                    - name: artifact0
+                      path: /home/node/tests/e2e/playwright-report
+                      s3:
+                        key: "workflow-artifacts/{{workflow.name}}/{{pod.name}}/playwright-report.tar.gz"
+                      optional: true
+                    - name: artifact1
+                      path: /home/node/tests/e2e/test-results
+                      s3:
+                        key: "workflow-artifacts/{{workflow.name}}/{{pod.name}}/test-results.tar.gz"
+                      optional: true
           operation: create
           parameters:
             # Parameter 0: Set the build url in the workflow

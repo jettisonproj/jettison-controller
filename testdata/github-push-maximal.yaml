@@ -24,6 +24,13 @@ spec:
     - name: volume-1
       secret:
         secretName: volume-secret-1
+    artifacts:
+    - key: playwright-report.tar.gz
+      path: /home/node/tests/e2e/playwright-report
+      optional: true
+    - key: test-results.tar.gz
+      path: /home/node/tests/e2e/test-results
+      optional: true
   - stepName: deploy-to-dev
     stepSource: ArgoCD
     repoUrl: "https://github.com/jettisonproj/rollouts-demo-argo-configs.git"
