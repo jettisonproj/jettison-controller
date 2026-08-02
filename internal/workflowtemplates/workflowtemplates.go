@@ -29,7 +29,7 @@ const (
 	// Deploy Step Image for Docker Build Diff Check
 	deployStepsDockerBuildDiffCheckImage = "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
 	// Deploy Step Image for Docker Build
-	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:da9f01d7adad4beb879ba3f50c3d7791ebf902b7"
+	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:428316dff2d38f1d1ce200c11b012ccabd950326"
 	// Deploy Step Image for GitHub PR Creation
 	deployStepsGitHubCreatePr = "ghcr.io/jettisonproj/deploy-steps/create-pr:8b8c65d18de0d3b6fa9b908fbed5cca01eb32e85"
 )
@@ -39,6 +39,11 @@ var (
 
 	activeDeadlineSeconds5m = intstr.FromInt(300)    // 5m
 	activeDeadlineSeconds3d = intstr.FromInt(259200) // 3d
+
+	// For an example of BuildKit usage, see:
+	// https://github.com/moby/buildkit/blob/master/examples/kubernetes/job.rootless.yaml
+	buildKitUid int64 = 1000
+	buildKitGid int64 = 1000
 
 	// deploy-step-github-check-start
 	// Starts a GitHub check for the specified commit.
@@ -191,6 +196,29 @@ var (
 							"--status-file",
 							"/workspace/docker-build-pr-status.txt",
 						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "BUILDKITD_FLAGS",
+								Value: "--oci-worker-no-process-sandbox",
+							},
+						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsUser:  &buildKitUid,
+							RunAsGroup: &buildKitGid,
+							SeccompProfile: &corev1.SeccompProfile{
+								Type: corev1.SeccompProfileTypeUnconfined,
+							},
+							AppArmorProfile: &corev1.AppArmorProfile{
+								Type: corev1.AppArmorProfileTypeUnconfined,
+							},
+						},
+						VolumeMounts: []corev1.VolumeMount{
+							// Mount the BuildKit cache in case a build is needed
+							{
+								Name:      "buildkit-cache",
+								MountPath: "/home/user/.local/share/buildkit",
+							},
+						},
 					},
 					Dependencies: []string{"docker-build-diff-check-pr"},
 				},
@@ -209,6 +237,15 @@ var (
 				Name: "docker-build-pr-workspace",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			// Use a pre-created volume to re-use the build cache between runs
+			{
+				Name: "buildkit-cache",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: "buildkit-cache-pvc",
+					},
 				},
 			},
 		},
@@ -313,11 +350,32 @@ var (
 							"--status-file",
 							"/workspace/docker-build-commit-status.txt",
 						},
+						Env: []corev1.EnvVar{
+							{
+								Name:  "BUILDKITD_FLAGS",
+								Value: "--oci-worker-no-process-sandbox",
+							},
+						},
+						SecurityContext: &corev1.SecurityContext{
+							RunAsUser:  &buildKitUid,
+							RunAsGroup: &buildKitGid,
+							SeccompProfile: &corev1.SeccompProfile{
+								Type: corev1.SeccompProfileTypeUnconfined,
+							},
+							AppArmorProfile: &corev1.AppArmorProfile{
+								Type: corev1.AppArmorProfileTypeUnconfined,
+							},
+						},
 						VolumeMounts: []corev1.VolumeMount{
 							{
 								// Mount the configuration so we can push the docker image
 								Name:      "docker-config",
-								MountPath: "/kaniko/.docker",
+								MountPath: "/home/user/.docker",
+							},
+							// Mount the BuildKit cache in case a build is needed
+							{
+								Name:      "buildkit-cache",
+								MountPath: "/home/user/.local/share/buildkit",
 							},
 						},
 					},
@@ -346,6 +404,15 @@ var (
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName: "regcred",
+					},
+				},
+			},
+			// Use a pre-created volume to re-use the build cache between runs
+			{
+				Name: "buildkit-cache",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: "buildkit-cache-pvc",
 					},
 				},
 			},

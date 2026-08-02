@@ -134,16 +134,37 @@ spec:
                       - '{{inputs.parameters.docker-context-dir}}'
                       - --status-file
                       - /workspace/docker-build-pr-status.txt
+                      env:
+                      - name: "BUILDKITD_FLAGS"
+                        value: "--oci-worker-no-process-sandbox"
+                      # Rootless BuildKit depends on the security context. See:
+                      # https://github.com/moby/buildkit/blob/master/examples/kubernetes/job.rootless.yaml
+                      securityContext:
+                        # Needs Kubernetes >= 1.19
+                        seccompProfile:
+                          type: Unconfined
+                        # Needs Kubernetes >= 1.30
+                        appArmorProfile:
+                          type: Unconfined
+                        # To change UID/GID, you need to rebuild the image
+                        runAsUser: 1000
+                        runAsGroup: 1000
                       name: "main"
-                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:da9f01d7adad4beb879ba3f50c3d7791ebf902b7"
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:428316dff2d38f1d1ce200c11b012ccabd950326"
                       dependencies:
                       - docker-build-diff-check-pr
+                      volumeMounts:
+                      - mountPath: /home/user/.local/share/buildkit
+                        name: buildkit-cache
                     volumeMounts:
                     - mountPath: /workspace
                       name: docker-build-pr-workspace
                   volumes:
                   - name: docker-build-pr-workspace
                     emptyDir: {}
+                  - name: buildkit-cache
+                    persistentVolumeClaim:
+                      claimName: buildkit-cache-pvc
                   - name: volume-1
                     secret:
                       secretName: volume-secret-1
