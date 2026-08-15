@@ -36,11 +36,6 @@ func getSensorDependencies(flowTriggers []v1alpha1base.BaseTrigger) ([]eventsv1.
 							Value: []string{"open"},
 						},
 						{
-							Path:  "body.pull_request.base.ref",
-							Type:  eventsv1.JSONTypeString,
-							Value: []string{*trigger.BaseRef},
-						},
-						{
 							Path:  "body.repository.clone_url",
 							Type:  eventsv1.JSONTypeString,
 							Value: []string{trigger.RepoUrl},
