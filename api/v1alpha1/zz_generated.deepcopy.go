@@ -312,11 +312,6 @@ func (in *FlowStatus) DeepCopy() *FlowStatus {
 func (in *GitHubPullRequestTrigger) DeepCopyInto(out *GitHubPullRequestTrigger) {
 	*out = *in
 	out.BaseTriggerFields = in.BaseTriggerFields
-	if in.BaseRef != nil {
-		in, out := &in.BaseRef, &out.BaseRef
-		*out = new(string)
-		**out = **in
-	}
 	if in.PullRequestEvents != nil {
 		in, out := &in.PullRequestEvents, &out.PullRequestEvents
 		*out = make([]string, len(*in))

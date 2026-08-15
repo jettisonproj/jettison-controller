@@ -31,11 +31,6 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 	for i := range triggers {
 		switch trigger := triggers[i].(type) {
 		case *GitHubPullRequestTrigger:
-			if trigger.BaseRef == nil {
-				trigger.BaseRef = new(string)
-				*trigger.BaseRef = defaultBaseRef
-			}
-
 			if trigger.PullRequestEvents == nil {
 				trigger.PullRequestEvents = defaultPullRequestEvents
 			}

@@ -10,7 +10,6 @@ spec:
   triggers:
   - triggerSource: GitHubPullRequest
     repoUrl: "https://github.com/jettisonproj/rollouts-demo.git"
-    # baseRef: "main" # Defaults to main
     # pullRequestEvents: [] # Defaults to opened, reopened, synchronize
   steps:
   - stepSource: DockerBuildTest

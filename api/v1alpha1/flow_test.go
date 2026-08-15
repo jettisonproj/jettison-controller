@@ -18,7 +18,6 @@ func TestFlowPR(t *testing.T) {
 	testCases := []struct {
 		flowFilePath                  string
 		expectedActiveDeadlineSeconds int64
-		expectedBaseRef               string
 		expectedPullRequestEvents     []string
 		expectedDockerfilePath        string
 		expectedDockerfileContextDir  string
@@ -29,7 +28,6 @@ func TestFlowPR(t *testing.T) {
 			// For the minimal yaml, defaults are expected
 			"github-pr-minimal.yaml",
 			900,
-			"main",
 			[]string{"opened", "reopened", "synchronize"},
 			"Dockerfile",
 			"",
@@ -40,7 +38,6 @@ func TestFlowPR(t *testing.T) {
 			// For the maximal yaml, overrides are expected
 			"github-pr-maximal.yaml",
 			800,
-			"master",
 			[]string{"opened"},
 			"subdir/Dockerfile",
 			"subdir",
@@ -72,7 +69,6 @@ func TestFlowPR(t *testing.T) {
 			prTrigger, ok := flowTrigger.(*v1alpha1.GitHubPullRequestTrigger)
 			require.Truef(t, ok, "failed to parse type as *GitHubPullRequestTrigger: %T", flowTrigger)
 			require.Equal(t, "https://github.com/jettisonproj/rollouts-demo.git", prTrigger.RepoUrl)
-			require.Equal(t, tc.expectedBaseRef, *prTrigger.BaseRef)
 			require.Equal(t, tc.expectedPullRequestEvents, prTrigger.PullRequestEvents)
 
 			require.Len(t, flowSteps, 1)
