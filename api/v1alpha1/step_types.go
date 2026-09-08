@@ -123,5 +123,5 @@ type ArgoCDStep struct {
 	// Optional, if non-blank, this effectively pauses the step
 	// by disabling the automated syncs
 	// +optional
-	PausedReason *string `json:"pausedReason,omitempty"`
+	PauseReason *string `json:"pauseReason,omitempty"`
 }
