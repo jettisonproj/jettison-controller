@@ -36,8 +36,8 @@ func (in *ArgoCDStep) DeepCopyInto(out *ArgoCDStep) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.PausedReason != nil {
-		in, out := &in.PausedReason, &out.PausedReason
+	if in.PauseReason != nil {
+		in, out := &in.PauseReason, &out.PauseReason
 		*out = new(string)
 		**out = **in
 	}
