@@ -92,7 +92,7 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 			if !appNames[appName] {
 				appNames[appName] = true
 
-				stepEnabled := step.PausedReason == nil || strings.TrimSpace(*step.PausedReason) == ""
+				stepEnabled := step.PauseReason == nil || strings.TrimSpace(*step.PauseReason) == ""
 				application := &cdv1.Application{
 					TypeMeta: applicationTypeMeta,
 					ObjectMeta: metav1.ObjectMeta{
