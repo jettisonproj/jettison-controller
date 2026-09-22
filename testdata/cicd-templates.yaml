@@ -78,7 +78,7 @@ spec:
       - name: main
         dependencies:
         - docker-build-diff-check-pr
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:428316dff2d38f1d1ce200c11b012ccabd950326"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:0f4e030e951f69f6bb4937e59fba0ebbad73c03d"
         args:
         - pr
         - --clone-path
@@ -150,7 +150,7 @@ spec:
         - "/workspace/docker-build-commit-status.txt"
         - "/repo"
       - name: main
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:428316dff2d38f1d1ce200c11b012ccabd950326"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:0f4e030e951f69f6bb4937e59fba0ebbad73c03d"
         dependencies:
         - docker-build-diff-check-commit
         args:
@@ -237,7 +237,7 @@ spec:
       - name: argocd-app-namespace
       - name: argocd-app-name
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/argocd:232d57d3d6c166db202203547c2e5d93d0befaa0"
+      image: "ghcr.io/jettisonproj/deploy-steps/argocd:d244572649d31932156e03c5a481ba143cc8491d"
       args:
       - "./deploy-step-argocd.sh"
       - "{{inputs.parameters.deploy-repo}}"
