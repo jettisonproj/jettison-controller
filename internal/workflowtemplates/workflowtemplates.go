@@ -193,6 +193,8 @@ var (
 							"{{inputs.parameters.docker-context-dir}}",
 							"--status-file",
 							"/workspace/docker-build-pr-status.txt",
+							"--artifacts-dir",
+							"/artifacts",
 						},
 						Env: []corev1.EnvVar{
 							{
@@ -227,12 +229,24 @@ var (
 					Name:      "docker-build-pr-workspace",
 					MountPath: "/workspace",
 				},
+				// Mount the shared test artifacts dir between the docker-build steps
+				{
+					Name:      "docker-build-pr-artifacts",
+					MountPath: "/artifacts",
+				},
 			},
 		},
 		Volumes: []corev1.Volume{
 			// Create a volume to share a repo workspace between the docker-build steps
 			{
 				Name: "docker-build-pr-workspace",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			// Create a volume to share test artifacts between the docker-build steps
+			{
+				Name: "docker-build-pr-artifacts",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -347,6 +361,8 @@ var (
 							"{{inputs.parameters.dockerfile-dir}}",
 							"--status-file",
 							"/workspace/docker-build-commit-status.txt",
+							"--artifacts-dir",
+							"/artifacts",
 						},
 						Env: []corev1.EnvVar{
 							{
@@ -386,12 +402,24 @@ var (
 					Name:      "docker-build-commit-workspace",
 					MountPath: "/workspace",
 				},
+				// Mount the shared test artifacts between the docker-build steps
+				{
+					Name:      "docker-build-commit-artifacts",
+					MountPath: "/artifacts",
+				},
 			},
 		},
 		Volumes: []corev1.Volume{
 			// Create a volume to share a repo workspace between the docker-build steps
 			{
 				Name: "docker-build-commit-workspace",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			// Create a volume to share test artifacts between the docker-build steps
+			{
+				Name: "docker-build-commit-artifacts",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},

@@ -24,8 +24,8 @@ spec:
         secretName: volume-secret-1
     artifacts:
     - key: playwright-report.tar.gz
-      path: /home/node/tests/e2e/playwright-report
+      path: /playwright-report.tar.gz
       optional: true
     - key: test-results.tar.gz
-      path: /home/node/tests/e2e/test-results
+      path: /test-results.tar.gz
       optional: true

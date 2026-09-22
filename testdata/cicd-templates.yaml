@@ -89,6 +89,8 @@ spec:
         - "{{inputs.parameters.docker-context-dir}}"
         - --status-file
         - /workspace/docker-build-pr-status.txt
+        - --artifacts-dir
+        - /artifacts
         env:
         - name: "BUILDKITD_FLAGS"
           value: "--oci-worker-no-process-sandbox"
@@ -110,8 +112,12 @@ spec:
       volumeMounts:
       - name: docker-build-pr-workspace
         mountPath: /workspace
+      - name: docker-build-pr-artifacts
+        mountPath: /artifacts
     volumes:
     - name: docker-build-pr-workspace
+      emptyDir: {}
+    - name: docker-build-pr-artifacts
       emptyDir: {}
     - name: buildkit-cache
       persistentVolumeClaim:
@@ -173,6 +179,8 @@ spec:
         - "{{inputs.parameters.dockerfile-dir}}"
         - --status-file
         - /workspace/docker-build-commit-status.txt
+        - --artifacts-dir
+        - /artifacts
         env:
         - name: "BUILDKITD_FLAGS"
           value: "--oci-worker-no-process-sandbox"
@@ -196,9 +204,13 @@ spec:
       volumeMounts:
       - name: docker-build-commit-workspace
         mountPath: /workspace
+      - name: docker-build-commit-artifacts
+        mountPath: /artifacts
     # Mount the configuration so we can push the image.
     volumes:
     - name: docker-build-commit-workspace
+      emptyDir: {}
+    - name: docker-build-commit-artifacts
       emptyDir: {}
     - name: docker-config
       secret:

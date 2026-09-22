@@ -130,6 +130,8 @@ spec:
                       - '{{inputs.parameters.docker-context-dir}}'
                       - --status-file
                       - /workspace/docker-build-pr-status.txt
+                      - --artifacts-dir
+                      - /artifacts
                       env:
                       - name: "BUILDKITD_FLAGS"
                         value: "--oci-worker-no-process-sandbox"
@@ -155,8 +157,12 @@ spec:
                     volumeMounts:
                     - mountPath: /workspace
                       name: docker-build-pr-workspace
+                    - mountPath: /artifacts
+                      name: docker-build-pr-artifacts
                   volumes:
                   - name: docker-build-pr-workspace
+                    emptyDir: {}
+                  - name: docker-build-pr-artifacts
                     emptyDir: {}
                   - name: buildkit-cache
                     persistentVolumeClaim:
@@ -171,12 +177,12 @@ spec:
                         path: /workspace/docker-build-pr-status.txt
                     artifacts:
                     - name: artifact0
-                      path: /home/node/tests/e2e/playwright-report
+                      path: /artifacts/playwright-report.tar.gz
                       s3:
                         key: "workflow-artifacts/{{workflow.name}}/{{pod.name}}/playwright-report.tar.gz"
                       optional: true
                     - name: artifact1
-                      path: /home/node/tests/e2e/test-results
+                      path: /artifacts/test-results.tar.gz
                       s3:
                         key: "workflow-artifacts/{{workflow.name}}/{{pod.name}}/test-results.tar.gz"
                       optional: true
