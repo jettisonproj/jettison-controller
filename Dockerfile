@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
   CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go test -c ./test/e2e
 
 # Unit Test
-FROM build as test
+FROM build as test-results
 RUN test -z "$(go fmt ./...)" && \
   go vet ./... && \
   go test $(go list ./... | grep -v /e2e) -coverprofile cover.out
