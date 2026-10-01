@@ -103,6 +103,8 @@ spec:
                           value: '{{inputs.parameters.repo-short}}'
                         - name: dockerfile-dir
                           value: /subdir
+                        - name: num-artifacts
+                          value: '2'
                       name: docker-build-test-publish
                       template: docker-build-test-publish0
                     - arguments:
@@ -228,6 +230,8 @@ spec:
                       - /workspace/jettison-deploy-step-status.txt
                       - --artifacts-dir
                       - /artifacts
+                      - --num-artifacts
+                      - '{{inputs.parameters.num-artifacts}}'
                       env:
                       - name: "BUILDKITD_FLAGS"
                         value: "--oci-worker-no-process-sandbox"
@@ -268,6 +272,7 @@ spec:
                     - name: dockerfile-dir
                     - name: image-registry
                       value: ghcr.io/
+                    - name: num-artifacts
                   name: docker-build-test-publish0
                   volumes:
                   - name: docker-build-commit-workspace

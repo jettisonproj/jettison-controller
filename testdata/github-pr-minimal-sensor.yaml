@@ -92,6 +92,8 @@ spec:
                           value: "{{inputs.parameters.base-revision}}"
                         - name: base-revision-ref
                           value: "{{inputs.parameters.base-revision-ref}}"
+                        - name: num-artifacts
+                          value: "0"
                       templateRef:
                         name: cicd-templates
                         template: docker-build-test
