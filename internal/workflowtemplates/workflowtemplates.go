@@ -174,7 +174,7 @@ var (
 							"{{inputs.parameters.base-revision-ref}}",
 							"{{inputs.parameters.dockerfile-path}}",
 							"{{inputs.parameters.docker-context-dir}}",
-							"/workspace/docker-build-pr-status.txt",
+							"/workspace/jettison-deploy-step-status.txt",
 							"/repo",
 						},
 					},
@@ -192,7 +192,7 @@ var (
 							"--docker-context-dir",
 							"{{inputs.parameters.docker-context-dir}}",
 							"--status-file",
-							"/workspace/docker-build-pr-status.txt",
+							"/workspace/jettison-deploy-step-status.txt",
 							"--artifacts-dir",
 							"/artifacts",
 						},
@@ -261,15 +261,15 @@ var (
 				},
 			},
 		},
-		// export the docker-build-pr-status to distinguish a "Skipped" docker build
+		// export the jettison-deploy-step-status to distinguish a "Skipped" docker build
 		// which can cause further steps to be skipped
-		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.docker-build-pr-status}}
+		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.jettison-deploy-step-status}}
 		Outputs: workflowsv1.Outputs{
 			Parameters: []workflowsv1.Parameter{
 				{
-					Name: "docker-build-pr-status",
+					Name: "jettison-deploy-step-status",
 					ValueFrom: &workflowsv1.ValueFrom{
-						Path: "/workspace/docker-build-pr-status.txt",
+						Path: "/workspace/jettison-deploy-step-status.txt",
 					},
 				},
 			},
@@ -332,7 +332,7 @@ var (
 							"{{inputs.parameters.revision-ref}}",
 							"{{inputs.parameters.dockerfile-path}}",
 							"{{inputs.parameters.docker-context-dir}}",
-							"/workspace/docker-build-commit-status.txt",
+							"/workspace/jettison-deploy-step-status.txt",
 							"/repo",
 						},
 					},
@@ -360,7 +360,7 @@ var (
 							"--dockerfile-dir",
 							"{{inputs.parameters.dockerfile-dir}}",
 							"--status-file",
-							"/workspace/docker-build-commit-status.txt",
+							"/workspace/jettison-deploy-step-status.txt",
 							"--artifacts-dir",
 							"/artifacts",
 						},
@@ -443,15 +443,15 @@ var (
 				},
 			},
 		},
-		// export the docker-build-commit-status to distinguish a "Skipped" docker build
+		// export the jettison-deploy-step-status to distinguish a "Skipped" docker build
 		// which can cause further steps to be skipped
-		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.docker-build-commit-status}}
+		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.jettison-deploy-step-status}}
 		Outputs: workflowsv1.Outputs{
 			Parameters: []workflowsv1.Parameter{
 				{
-					Name: "docker-build-commit-status",
+					Name: "jettison-deploy-step-status",
 					ValueFrom: &workflowsv1.ValueFrom{
-						Path: "/workspace/docker-build-commit-status.txt",
+						Path: "/workspace/jettison-deploy-step-status.txt",
 					},
 				},
 			},
@@ -536,6 +536,7 @@ var (
 				"{{inputs.parameters.dockerfile-dir}}",
 				"{{inputs.parameters.argocd-app-namespace}}",
 				"{{inputs.parameters.argocd-app-name}}",
+				"/tmp/jettison-deploy-step-status.txt",
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -552,6 +553,19 @@ var (
 				VolumeSource: corev1.VolumeSource{
 					Secret: &corev1.SecretVolumeSource{
 						SecretName: "github-key",
+					},
+				},
+			},
+		},
+		// export the jettison-deploy-step-status to distinguish a "Skipped" update
+		// which can cause further steps to be skipped
+		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.jettison-deploy-step-status}}
+		Outputs: workflowsv1.Outputs{
+			Parameters: []workflowsv1.Parameter{
+				{
+					Name: "jettison-deploy-step-status",
+					ValueFrom: &workflowsv1.ValueFrom{
+						Path: "/tmp/jettison-deploy-step-status.txt",
 					},
 				},
 			},
