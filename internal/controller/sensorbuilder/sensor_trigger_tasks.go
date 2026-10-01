@@ -149,6 +149,10 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 							Name:  "base-revision-ref",
 							Value: workflowsv1.AnyStringPtr("{{inputs.parameters.base-revision-ref}}"),
 						},
+						{
+							Name:  "num-artifacts",
+							Value: workflowsv1.AnyStringPtr(len(step.Artifacts)),
+						},
 					},
 				},
 				Depends: getDepends(step.DependsOn),
@@ -247,6 +251,10 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 						{
 							Name:  "dockerfile-dir",
 							Value: workflowsv1.AnyStringPtr(getDockerfileDir(*step.DockerfilePath)),
+						},
+						{
+							Name:  "num-artifacts",
+							Value: workflowsv1.AnyStringPtr(len(step.Artifacts)),
 						},
 					},
 				},

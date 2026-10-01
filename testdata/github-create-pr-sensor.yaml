@@ -73,6 +73,8 @@ spec:
                         value: '{{inputs.parameters.repo-short}}'
                       - name: dockerfile-dir
                         value: /argocd
+                      - name: num-artifacts
+                        value: '0'
                     name: deploy-step-argocd-publish
                     templateRef:
                       clusterScope: true
