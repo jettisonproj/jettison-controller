@@ -240,7 +240,7 @@ spec:
                         # To change UID/GID, you need to rebuild the image
                         runAsUser: 1000
                         runAsGroup: 1000
-                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:428316dff2d38f1d1ce200c11b012ccabd950326"
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:0f4e030e951f69f6bb4937e59fba0ebbad73c03d"
                       name: main
                       dependencies:
                       - "docker-build-diff-check-commit"
