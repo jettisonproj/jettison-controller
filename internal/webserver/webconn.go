@@ -19,4 +19,8 @@ type WebConn struct {
 
 	// The underlying connection
 	conn *websocket.Conn
+
+	// The write channel for the connection
+	// Used to synchronize writes. Enforces one writer
+	writeChan chan interface{}
 }
