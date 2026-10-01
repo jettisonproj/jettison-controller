@@ -65,6 +65,7 @@ func (s *FlowWatcher) streamLogLines(
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
+			conn.log.Info("cancel log stream due to finished context")
 			return
 		case <-ticker.C:
 			s.sendLogLines(conn, containerLogMessageData, logLines)
@@ -99,27 +100,24 @@ func (s *FlowWatcher) sendLogLines(
 	logLines []string,
 ) {
 	conn.log.Info("sending log lines", "numLines", len(logLines))
-	s.notifyOne <- WebConnNotification{
-		conn: conn,
-		message: ContainerLogList{
-			Items: []ContainerLog{
-				ContainerLog{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       containerLogKind,
-						APIVersion: v1alpha1.GroupVersion.Identifier(),
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: containerLogMessageData.Namespace,
-						Name:      containerLogMessageData.PodName,
-					},
-					Spec: ContainerLogSpec{
-						ContainerName: containerLogMessageData.ContainerName,
-						LogLines:      logLines,
-					},
+	s.sendConn(conn, ContainerLogList{
+		Items: []ContainerLog{
+			ContainerLog{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       containerLogKind,
+					APIVersion: v1alpha1.GroupVersion.Identifier(),
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: containerLogMessageData.Namespace,
+					Name:      containerLogMessageData.PodName,
+				},
+				Spec: ContainerLogSpec{
+					ContainerName: containerLogMessageData.ContainerName,
+					LogLines:      logLines,
 				},
 			},
 		},
-	}
+	})
 }
 
 func (s *FlowWatcher) sendPod(
@@ -144,12 +142,10 @@ func (s *FlowWatcher) sendPod(
 	if pod.APIVersion == "" || pod.Kind == "" {
 		s.backfillPodSchema(pod)
 	}
-	s.notifyOne <- WebConnNotification{
-		conn: conn,
-		message: v1.PodList{
-			Items: []v1.Pod{*pod},
-		},
-	}
+
+	s.sendConn(conn, v1.PodList{
+		Items: []v1.Pod{*pod},
+	})
 }
 
 // ContainerLogList contains a list of ContainerLog.

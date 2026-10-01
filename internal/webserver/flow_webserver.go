@@ -122,7 +122,6 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 		cache:               s.Cache,
 		scheme:              s.Scheme,
 		notifyAll:           make(chan interface{}),
-		notifyOne:           make(chan WebConnNotification),
 		register:            make(chan *WebConn),
 		unregister:          make(chan *WebConn),
 		conns:               make(map[*WebConn]bool),
@@ -152,6 +151,7 @@ func (s *FlowWebServer) handleWebsocket(w http.ResponseWriter, r *http.Request) 
 		cancelCauseFunc: cancelCauseFunc,
 		log:             log.FromContext(ctx),
 		conn:            conn,
+		writeChan:       make(chan interface{}),
 	}
 }
 

@@ -52,11 +52,8 @@ func newWebError(message string) WebErrorList {
 
 func (s *FlowWatcher) sendWebError(conn *WebConn, err error, msg string) {
 	conn.log.Error(err, msg)
-	s.notifyOne <- WebConnNotification{
-		conn: conn,
-		message: newWebError(
-			fmt.Sprintf("%s: %s", msg, err),
-		),
-	}
+	s.sendConn(conn, newWebError(
+		fmt.Sprintf("%s: %s", msg, err),
+	))
 	s.unregister <- conn
 }

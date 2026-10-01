@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sync"
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
@@ -41,9 +42,6 @@ type FlowWatcher struct {
 	// Sends notifications to the websockets
 	notifyAll chan interface{}
 
-	// Sends notification to one websocket
-	notifyOne chan WebConnNotification
-
 	// Registers a websocket
 	register chan *WebConn
 
@@ -70,12 +68,6 @@ type FlowWatcher struct {
 	kubeClient *corev1client.CoreV1Client
 }
 
-// Struct containing the data to send a notification to one websocket
-type WebConnNotification struct {
-	conn    *WebConn
-	message interface{}
-}
-
 // Struct containing the data for a websocket to subscribe to resources
 type WebConnResourceSubscription struct {
 	conn                 *WebConn
@@ -84,6 +76,9 @@ type WebConnResourceSubscription struct {
 
 func (s *FlowWatcher) run() {
 	for {
+
+		setupLog.Info("start read loop iteration")
+
 		select {
 		case conn := <-s.register:
 			s.registerConn(conn)
@@ -93,114 +88,137 @@ func (s *FlowWatcher) run() {
 			s.registerResourceSubscription(webConnResourceSubscription)
 		case message := <-s.notifyAll:
 			for conn := range s.conns {
-				s.notifyConn(conn, message)
+				s.sendConn(conn, message)
 			}
 		case message := <-s.notifySubscriptions:
 			s.notifyResourceSubscriptions(message)
-		case webConnNotification := <-s.notifyOne:
-			conn := webConnNotification.conn
-			message := webConnNotification.message
-			s.notifyConn(conn, message)
 		}
+
+		setupLog.Info("end read loop iteration")
 	}
 }
 
 // Register the connection
 // This is only expected to be called once per connection
 func (s *FlowWatcher) registerConn(conn *WebConn) {
-	ctx := conn.ctx
 	conn.log.Info("registering connection")
 
-	// Send the initial resources
-	// send flows
-	flows := &v1alpha1.FlowList{}
-	err := s.client.List(ctx, flows)
-	if err != nil {
-		conn.log.Error(err, "failed to get flows for websocket")
-		err = conn.conn.WriteJSON(newWebError(
-			fmt.Sprintf("failed to get flows: %s", err),
-		))
-		if err != nil {
-			conn.log.Error(err, "failed to send error message after failing to get flows")
-		}
-		s.unregister <- conn
-		return
-	}
-	err = conn.conn.WriteJSON(flows)
-	if err != nil {
-		conn.log.Error(err, "failed to send flows for websocket")
-		s.unregister <- conn
-		return
-	}
+	go s.writeConn(conn)
 
-	// send applications
-	applications := &cdv1.ApplicationList{}
-	err = s.client.List(ctx, applications)
-	if err != nil {
-		conn.log.Error(err, "failed to get applications for websocket")
-		err = conn.conn.WriteJSON(newWebError(
-			fmt.Sprintf("failed to get applications: %s", err),
-		))
-		if err != nil {
-			conn.log.Error(err, "failed to send error message after failing to get applications")
-		}
-		s.unregister <- conn
-		return
-	}
-	err = conn.conn.WriteJSON(applications)
-	if err != nil {
-		conn.log.Error(err, "failed to send applications for websocket")
-		s.unregister <- conn
-		return
-	}
+	var wg sync.WaitGroup
 
-	// send rollouts
-	rollouts := &rolloutsv1.RolloutList{}
-	err = s.client.List(ctx, rollouts)
-	if err != nil {
-		conn.log.Error(err, "failed to get rollouts for websocket")
-		err = conn.conn.WriteJSON(newWebError(
-			fmt.Sprintf("failed to get rollouts: %s", err),
-		))
-		if err != nil {
-			conn.log.Error(err, "failed to send error message after failing to get rollouts")
-		}
-		s.unregister <- conn
-		return
-	}
-	err = conn.conn.WriteJSON(rollouts)
-	if err != nil {
-		conn.log.Error(err, "failed to send rollouts for websocket")
-		s.unregister <- conn
-		return
-	}
+	// Send the initial resources concurrently
+	conn.log.Info("sending initial resources")
+	wg.Add(1)
+	go s.sendInitialFlows(conn, &wg)
 
-	// send workflows
-	workflows := &workflowsv1.WorkflowList{}
-	err = s.client.List(ctx, workflows)
-	if err != nil {
-		conn.log.Error(err, "failed to get workflows for websocket")
-		err = conn.conn.WriteJSON(newWebError(
-			fmt.Sprintf("failed to get workflows: %s", err),
-		))
-		if err != nil {
-			conn.log.Error(err, "failed to send error message after failing to get workflows")
-		}
-		s.unregister <- conn
-		return
-	}
-	workflows.Items = slices.Concat(s.mysqlWorkflows, workflows.Items)
-	err = conn.conn.WriteJSON(workflows)
-	if err != nil {
-		conn.log.Error(err, "failed to send workflows for websocket")
-		s.unregister <- conn
-		return
-	}
+	wg.Add(1)
+	go s.sendInitialApplications(conn, &wg)
+
+	wg.Add(1)
+	go s.sendInitialRollouts(conn, &wg)
+
+	wg.Add(1)
+	go s.sendInitialWorkflows(conn, &wg)
+
+	wg.Wait()
 
 	// Register the connection to send updates
 	s.conns[conn] = true
 
 	go s.readConn(conn)
+}
+
+func (s *FlowWatcher) sendConn(conn *WebConn, message interface{}) {
+	if conn.ctx.Err() != nil {
+		conn.log.Info("skip message send due to already closed write channel")
+		return
+	}
+
+	select {
+	case conn.writeChan <- message:
+		conn.log.Info("sent message to conn write channel")
+	case <-conn.ctx.Done():
+		conn.log.Info("skip message send due to closed write channel")
+	}
+}
+
+func (s *FlowWatcher) sendInitialFlows(conn *WebConn, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	flows := &v1alpha1.FlowList{}
+	err := s.client.List(conn.ctx, flows)
+	if err != nil {
+		s.sendWebError(conn, err, "failed to get flows")
+		return
+	}
+
+	s.sendConn(conn, flows)
+}
+
+func (s *FlowWatcher) sendInitialApplications(conn *WebConn, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	applications := &cdv1.ApplicationList{}
+	err := s.client.List(conn.ctx, applications)
+	if err != nil {
+		s.sendWebError(conn, err, "failed to get applications")
+		return
+	}
+
+	s.sendConn(conn, applications)
+}
+
+func (s *FlowWatcher) sendInitialRollouts(conn *WebConn, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	rollouts := &rolloutsv1.RolloutList{}
+	err := s.client.List(conn.ctx, rollouts)
+	if err != nil {
+		s.sendWebError(conn, err, "failed to get rollouts")
+		return
+	}
+
+	s.sendConn(conn, rollouts)
+}
+
+func (s *FlowWatcher) sendInitialWorkflows(conn *WebConn, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	workflows := &workflowsv1.WorkflowList{}
+	err := s.client.List(conn.ctx, workflows)
+	if err != nil {
+		s.sendWebError(conn, err, "failed to get workflows")
+		return
+	}
+
+	workflows.Items = slices.Concat(s.mysqlWorkflows, workflows.Items)
+
+	s.sendConn(conn, workflows)
+}
+
+func (s *FlowWatcher) writeConn(conn *WebConn) {
+	for message := range conn.writeChan {
+		conn.log.Info("debug: outer write start")
+		err := conn.conn.WriteJSON(message)
+		if err != nil {
+			conn.log.Error(err, "failed to notify conn. Closing...")
+			conn.log.Info("debug: inner unregister start")
+			s.unregister <- conn
+			conn.log.Info("debug: inner unregister end")
+		}
+
+		conn.log.Info("debug: outer write end")
+	}
+
+	// After the channel closes, close the connection
+	err := conn.conn.Close()
+	if err != nil {
+		conn.log.Error(err, "error closing connection")
+		return
+	}
+
+	conn.log.Info("end write loop for connection: channel closed")
 }
 
 func (s *FlowWatcher) readConn(conn *WebConn) {
@@ -214,7 +232,7 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 				conn.log.Error(err, "unexpected close error")
 				panic(err)
 			}
-			conn.log.Info("connection exited cleanly")
+			conn.log.Info("connection exited cleanly", "exitErr", err)
 			return
 		}
 
@@ -276,22 +294,11 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 	}
 	err := s.client.List(ctx, pods, &listOptions)
 	if err != nil {
-		conn.log.Error(err, "failed to get subscription pods for websocket")
-		err = conn.conn.WriteJSON(newWebError(
-			fmt.Sprintf("failed to get subscription pods: %s", err),
-		))
-		if err != nil {
-			conn.log.Error(err, "failed to send error message after failing to get subscription pods")
-		}
-		s.unregister <- conn
+		s.sendWebError(conn, err, "failed to get subscription pods")
 		return
 	}
-	err = conn.conn.WriteJSON(pods)
-	if err != nil {
-		conn.log.Error(err, "failed to send subscription pods for websocket")
-		s.unregister <- conn
-		return
-	}
+
+	s.sendConn(conn, pods)
 
 	// Register the connection to send subscription updates
 	s.connSubscriptions[resourceSubscription][conn] = true
@@ -302,26 +309,22 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 // Subscriptions are not cleaned up here to avoid look up. Instead, they are cleaned up
 // in the subscription handler
 func (s *FlowWatcher) unregisterConn(conn *WebConn) {
-	conn.log.Info("unregistering connection")
-
-	delete(s.conns, conn)
-	err := conn.conn.Close()
-	if err != nil {
-		conn.log.Error(err, "error closing connection")
-		conn.cancelCauseFunc(fmt.Errorf("connection closed with err: %s", err))
+	if !s.conns[conn] {
+		conn.log.Info("connection already unregistered. Skipping...")
 		return
 	}
-	conn.cancelCauseFunc(fmt.Errorf("connection closed"))
-}
 
-// Send the message to the connection
-// This should only be called from the channel receiver to prevent concurrent writes
-func (s *FlowWatcher) notifyConn(conn *WebConn, message interface{}) {
-	err := conn.conn.WriteJSON(message)
-	if err != nil {
-		conn.log.Error(err, "failed to notify conn. Closing...")
-		s.unregister <- conn
-	}
+	conn.log.Info("unregistering connection")
+
+	// Step 1: Cancel this context
+	// This stops any new writes from happening since all writes go through sendConn
+	conn.cancelCauseFunc(fmt.Errorf("connection unregistered"))
+
+	// Step 2: Remove from the conns. No new writes will be attempted
+	delete(s.conns, conn)
+
+	// Step 3: Close the write channel. This also closes the connection
+	close(conn.writeChan)
 }
 
 // Send the message to the subscribers
@@ -343,7 +346,7 @@ func (s *FlowWatcher) notifyResourceSubscriptions(obj interface{}) {
 				continue
 			}
 
-			s.notifyConn(webConn, listResource)
+			s.sendConn(webConn, listResource)
 		}
 	default:
 		// unreachable: this is validated in the event handler
