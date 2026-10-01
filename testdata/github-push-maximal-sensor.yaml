@@ -124,7 +124,7 @@ spec:
                         - name: argocd-app-name
                           value: "rollouts-demo-dev"
                       depends: docker-build-test-publish.Succeeded
-                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.jettison-deploy-step-status}} != Skipped"
                       name: deploy-to-dev
                       templateRef:
                         clusterScope: true
@@ -149,7 +149,7 @@ spec:
                         - name: argocd-app-name
                           value: "rollouts-demo-staging"
                       depends: docker-build-test-publish.Succeeded
-                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.jettison-deploy-step-status}} != Skipped"
                       name: deploy-to-staging
                       templateRef:
                         clusterScope: true
@@ -198,7 +198,7 @@ spec:
                       - "{{inputs.parameters.revision-ref}}"
                       - "{{inputs.parameters.dockerfile-path}}"
                       - "{{inputs.parameters.docker-context-dir}}"
-                      - "/workspace/docker-build-commit-status.txt"
+                      - "/workspace/jettison-deploy-step-status.txt"
                       - "/repo"
                       image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
                       name: "docker-build-diff-check-commit"
@@ -224,7 +224,7 @@ spec:
                       - --dockerfile-dir
                       - '{{inputs.parameters.dockerfile-dir}}'
                       - --status-file
-                      - /workspace/docker-build-commit-status.txt
+                      - /workspace/jettison-deploy-step-status.txt
                       - --artifacts-dir
                       - /artifacts
                       env:
@@ -284,9 +284,9 @@ spec:
                       secretName: volume-secret-1
                   outputs:
                     parameters:
-                    - name: docker-build-commit-status
+                    - name: jettison-deploy-step-status
                       valueFrom:
-                        path: /workspace/docker-build-commit-status.txt
+                        path: /workspace/jettison-deploy-step-status.txt
                     artifacts:
                     - name: artifact0
                       path: /artifacts/playwright-report.tar.gz

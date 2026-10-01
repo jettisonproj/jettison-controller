@@ -114,7 +114,7 @@ spec:
                         template: deploy-step-argocd
                         clusterScope: true
                       depends: docker-build-test-publish.Succeeded
-                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.jettison-deploy-step-status}} != Skipped"
                     - name: deploy-to-staging
                       arguments:
                         parameters:
@@ -139,7 +139,7 @@ spec:
                         template: deploy-step-argocd
                         clusterScope: true
                       depends: docker-build-test-publish.Succeeded
-                      when: "{{tasks.docker-build-test-publish.outputs.parameters.docker-build-commit-status}} != Skipped"
+                      when: "{{tasks.docker-build-test-publish.outputs.parameters.jettison-deploy-step-status}} != Skipped"
                     - name: deploy-to-prod
                       arguments:
                         parameters:
