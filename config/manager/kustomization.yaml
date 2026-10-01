@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/jettisonproj/jettison-controller
-  newTag: 231d2e98200cbbaae701f17d470e13db485b0590
+  newTag: latest
