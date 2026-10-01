@@ -113,7 +113,7 @@ spec:
                       - "{{inputs.parameters.base-revision-ref}}"
                       - "{{inputs.parameters.dockerfile-path}}"
                       - "{{inputs.parameters.docker-context-dir}}"
-                      - "/workspace/docker-build-pr-status.txt"
+                      - "/workspace/jettison-deploy-step-status.txt"
                       - /repo
                       name: "docker-build-diff-check-pr"
                       image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
@@ -129,7 +129,7 @@ spec:
                       - --docker-context-dir
                       - '{{inputs.parameters.docker-context-dir}}'
                       - --status-file
-                      - /workspace/docker-build-pr-status.txt
+                      - /workspace/jettison-deploy-step-status.txt
                       - --artifacts-dir
                       - /artifacts
                       env:
@@ -172,9 +172,9 @@ spec:
                       secretName: volume-secret-1
                   outputs:
                     parameters:
-                    - name: docker-build-pr-status
+                    - name: jettison-deploy-step-status
                       valueFrom:
-                        path: /workspace/docker-build-pr-status.txt
+                        path: /workspace/jettison-deploy-step-status.txt
                     artifacts:
                     - name: artifact0
                       path: /artifacts/playwright-report.tar.gz

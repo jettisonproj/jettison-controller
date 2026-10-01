@@ -477,7 +477,17 @@ func getWhen(initialStepName string, stepsByName map[string]v1alpha1base.BaseSte
 		switch step := stepsByName[dependency].(type) {
 		case *v1alpha1.DockerBuildTestPublishStep:
 			return fmt.Sprintf(
-				"{{tasks.%s.outputs.parameters.docker-build-commit-status}} != Skipped",
+				"{{tasks.%s.outputs.parameters.jettison-deploy-step-status}} != Skipped",
+				*step.StepName,
+			)
+		case *v1alpha1.DockerBuildTestStep:
+			return fmt.Sprintf(
+				"{{tasks.%s.outputs.parameters.jettison-deploy-step-status}} != Skipped",
+				*step.StepName,
+			)
+		case *v1alpha1.ArgoCDStep:
+			return fmt.Sprintf(
+				"{{tasks.%s.outputs.parameters.jettison-deploy-step-status}} != Skipped",
 				*step.StepName,
 			)
 		}
