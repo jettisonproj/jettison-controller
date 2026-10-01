@@ -35,11 +35,6 @@ type GitHubPullRequestTrigger struct {
 
 	// The url of the GitHub repo. For example: https://github.com/jettisonproj/rollouts-demo.git
 	RepoUrl string `json:"repoUrl"`
-	// Optional base ref or branch that the PR will be merged to. This is typically the default
-	// branch name such as "main" or "master"
-	// Defaults to "main"
-	// +optional
-	BaseRef *string `json:"baseRef,omitempty"`
 	// Optional list of GitHub pull request event types that will trigger the PR workflow.
 	// See https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request
 	// Defaults to [opened, reopened, synchronize]

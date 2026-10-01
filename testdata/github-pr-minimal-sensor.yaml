@@ -32,10 +32,6 @@ spec:
             type: string
             value:
               - open
-          - path: body.pull_request.base.ref
-            type: string
-            value:
-              - main
           - path: body.repository.clone_url
             type: string
             value:
