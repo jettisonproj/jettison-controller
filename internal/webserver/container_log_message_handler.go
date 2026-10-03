@@ -130,7 +130,7 @@ func (s *FlowWatcher) sendLogLines(
 	conn.log.Info("sending log lines", "numLines", len(logLines))
 	s.sendConn(conn, ContainerLogList{
 		Items: []ContainerLog{
-			ContainerLog{
+			{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       containerLogKind,
 					APIVersion: v1alpha1.GroupVersion.Identifier(),

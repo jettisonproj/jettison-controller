@@ -37,7 +37,7 @@ type WebErrorList struct {
 func newWebError(message string) WebErrorList {
 	return WebErrorList{
 		Items: []WebError{
-			WebError{
+			{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       webErrorKind,
 					APIVersion: v1alpha1.GroupVersion.Identifier(),
