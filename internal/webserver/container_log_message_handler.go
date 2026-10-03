@@ -59,10 +59,13 @@ func (s *FlowWatcher) streamLogLines(
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
+	scanner := bufio.NewScanner(stream)
+	scanChan := make(chan string)
+	go s.readLogLines(scanChan, scanner)
+
 	logLines := []string{}
 
-	scanner := bufio.NewScanner(stream)
-	for scanner.Scan() {
+	for {
 		select {
 		case <-ctx.Done():
 			conn.log.Info("cancel log stream due to finished context")
@@ -70,28 +73,40 @@ func (s *FlowWatcher) streamLogLines(
 		case <-ticker.C:
 			s.sendLogLines(conn, containerLogMessageData, logLines)
 			logLines = logLines[:0]
-		default:
-			logLine := scanner.Text()
-			logLines = append(logLines, logLine)
-			conn.log.Info("got log message", "logLine", logLine)
+		case logLine, isScanChanOpen := <-scanChan:
+			if isScanChanOpen {
+				logLines = append(logLines, logLine)
+				conn.log.Info("got log message", "logLine", logLine)
+				continue
+			}
+
+			// Finished reading from scanChan
+			if err := scanner.Err(); err != nil {
+				s.sendWebError(conn, err, "failed to scan pod log stream")
+				return
+			}
+
+			if len(logLines) > 0 {
+				s.sendLogLines(conn, containerLogMessageData, logLines)
+			}
+
+			conn.log.Info(
+				"finished scanning log",
+				"namespace", containerLogMessageData.Namespace,
+				"podName", containerLogMessageData.PodName,
+				"containerName", containerLogMessageData.ContainerName,
+			)
+			return
 		}
 	}
+}
 
-	if err := scanner.Err(); err != nil {
-		s.sendWebError(conn, err, "failed to scan pod log stream")
-		return
+func (s *FlowWatcher) readLogLines(scanChan chan string, scanner *bufio.Scanner) {
+	defer close(scanChan)
+
+	for scanner.Scan() {
+		scanChan <- scanner.Text()
 	}
-
-	if len(logLines) > 0 {
-		s.sendLogLines(conn, containerLogMessageData, logLines)
-	}
-
-	conn.log.Info(
-		"finished scanning log",
-		"namespace", containerLogMessageData.Namespace,
-		"podName", containerLogMessageData.PodName,
-		"containerName", containerLogMessageData.ContainerName,
-	)
 }
 
 func (s *FlowWatcher) sendLogLines(
