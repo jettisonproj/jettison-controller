@@ -21,7 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"encoding/json"
+	jsontext "encoding/json/jsontext"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
@@ -355,7 +355,7 @@ func (in *RawMessage) DeepCopyInto(out *RawMessage) {
 	*out = *in
 	if in.RawMessage != nil {
 		in, out := &in.RawMessage, &out.RawMessage
-		*out = make(json.RawMessage, len(*in))
+		*out = make(jsontext.Value, len(*in))
 		copy(*out, *in)
 	}
 }
