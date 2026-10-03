@@ -28,7 +28,9 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
 
 # Unit Test
 FROM build as test-results
-RUN test -z "$(go fmt ./...)" && \
+RUN FORMAT_RESULT="$(gofmt -d -e -s api cmd internal test/e2e)" && \
+  echo "${FORMAT_RESULT}" && \
+  test -z "${FORMAT_RESULT}" && \
   go vet ./... && \
   go test $(go list ./... | grep -v /e2e) -coverprofile cover.out
 
