@@ -473,16 +473,28 @@ func getDockerfileDir(dockerfilePath string) string {
 // In the long term, there may be a more efficient solution
 func getWhen(initialStepName string, stepsByName map[string]v1alpha1base.BaseStep) string {
 	initialStep := stepsByName[initialStepName]
-	for _, dependency := range initialStep.GetDependsOn() {
+	initialDependsOn := initialStep.GetDependsOn()
+	whenDeps := make([]string, 0, len(initialDependsOn))
+	for _, dependency := range initialDependsOn {
 		switch step := stepsByName[dependency].(type) {
 		case *v1alpha1.DockerBuildTestPublishStep:
-			return fmt.Sprintf(
-				"{{tasks.%s.outputs.parameters.docker-build-commit-status}} != Skipped",
+			whenDeps = append(whenDeps, fmt.Sprintf(
+				"{{tasks.%s.outputs.parameters.jettison-deploy-step-status}} != Skipped",
 				*step.StepName,
-			)
+			))
+		case *v1alpha1.DockerBuildTestStep:
+			whenDeps = append(whenDeps, fmt.Sprintf(
+				"{{tasks.%s.outputs.parameters.jettison-deploy-step-status}} != Skipped",
+				*step.StepName,
+			))
+		case *v1alpha1.ArgoCDStep:
+			whenDeps = append(whenDeps, fmt.Sprintf(
+				"{{tasks.%s.outputs.parameters.jettison-deploy-step-status}} != Skipped",
+				*step.StepName,
+			))
 		}
 	}
-	return ""
+	return strings.Join(whenDeps, " && ")
 }
 
 // Convert the "dependsOn" field set in the Flow to the "depends" field
