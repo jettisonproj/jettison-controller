@@ -16,6 +16,10 @@ const (
 	containerLogKind = "ContainerLog"
 )
 
+var (
+	containerLogDebounce = 50 * time.Millisecond
+)
+
 func (s *FlowWatcher) handleContainerLogMessage(
 	conn *WebConn,
 	containerLogMessageData ContainerLogMessageData,
@@ -57,8 +61,8 @@ func (s *FlowWatcher) streamLogLines(
 		}
 	}()
 
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
+	timer := time.NewTimer(containerLogDebounce)
+	defer timer.Stop()
 
 	scanner := bufio.NewScanner(stream)
 	scanChan := make(chan string)
@@ -71,7 +75,7 @@ func (s *FlowWatcher) streamLogLines(
 		case <-ctx.Done():
 			conn.log.Info("cancel log stream due to finished context")
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			if len(logLines) > 0 {
 				s.sendLogLines(conn, containerLogMessageData, logLines)
 				logLines = logLines[:0]
@@ -80,6 +84,7 @@ func (s *FlowWatcher) streamLogLines(
 			if isScanChanOpen {
 				logLines = append(logLines, logLine)
 				conn.log.Info("got log message", "logLine", logLine)
+				timer.Reset(containerLogDebounce)
 				continue
 			}
 
