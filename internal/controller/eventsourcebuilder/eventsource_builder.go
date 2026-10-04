@@ -5,7 +5,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -15,8 +14,6 @@ const (
 )
 
 var (
-	log = ctrl.Log.WithName("eventsourcebuilder")
-
 	githubEventSource = eventsv1.GithubEventSource{
 		// GitHub will send events to following port and endpoint
 		Webhook: &eventsv1.WebhookContext{

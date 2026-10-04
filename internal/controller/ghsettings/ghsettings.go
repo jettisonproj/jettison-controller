@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v74/github"
@@ -18,8 +17,7 @@ const (
 )
 
 var (
-	log               = ctrl.Log.WithName("ghsettings")
-	syncRetryInterval = 5 * time.Second
+	log = ctrl.Log.WithName("ghsettings")
 
 	rulesetSourceType   = github.RulesetSourceTypeRepository
 	rulesetTargetBranch = github.RulesetTargetBranch

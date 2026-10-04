@@ -35,8 +35,7 @@ const (
 var (
 	log = ctrl.Log.WithName("workflowtemplates")
 
-	activeDeadlineSeconds5m = intstr.FromInt(300)    // 5m
-	activeDeadlineSeconds3d = intstr.FromInt(259200) // 3d
+	activeDeadlineSeconds5m = intstr.FromInt(300) // 5m
 
 	// For an example of BuildKit usage, see:
 	// https://github.com/moby/buildkit/blob/master/examples/kubernetes/job.rootless.yaml

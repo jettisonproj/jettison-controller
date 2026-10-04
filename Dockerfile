@@ -4,6 +4,10 @@ ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
+
+# Download additional go linter
+RUN go install honnef.co/go/tools/cmd/staticcheck@latest
+
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -32,6 +36,7 @@ RUN FORMAT_RESULT="$(gofmt -d -e -s api cmd internal test/e2e)" && \
   echo "${FORMAT_RESULT}" && \
   test -z "${FORMAT_RESULT}" && \
   go vet ./... && \
+  staticcheck ./... && \
   go test $(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # Integration Test
