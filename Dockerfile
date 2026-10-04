@@ -31,16 +31,15 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o ma
   CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go test -c ./test/e2e
 
 # Unit Test
-# Skip two lint checks:
+# Skip one lint check:
 # - embedlit: The k8s structs are initialized by reading the docs, so align with assigning the embedded fields
-# - omitzero: See https://github.com/kubernetes-sigs/kubebuilder/issues/5205
 FROM build as test-results
 RUN FORMAT_RESULT="$(gofmt -d -e -s api cmd internal test/e2e)" && \
   echo "${FORMAT_RESULT}" && \
   test -z "${FORMAT_RESULT}" && \
   go vet ./... && \
   staticcheck ./... && \
-  go fix -diff -embedlit=false -omitzero=false ./... && \
+  go fix -diff -embedlit=false ./... && \
   go test $(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # Integration Test
