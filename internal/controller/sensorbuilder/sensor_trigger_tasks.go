@@ -202,10 +202,8 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					stepArtifact := workflowsv1.Artifact{
 						Name: fmt.Sprintf("artifact%d", i),
 						Path: fmt.Sprintf("/artifacts%s", step.Artifacts[i].Path),
-						ArtifactLocation: workflowsv1.ArtifactLocation{
-							S3: &workflowsv1.S3Artifact{
-								Key: getArtifactKey(step.Artifacts[i].Key),
-							},
+						S3: &workflowsv1.S3Artifact{
+							Key: getArtifactKey(step.Artifacts[i].Key),
 						},
 						Optional: step.Artifacts[i].Optional != nil && *step.Artifacts[i].Optional,
 					}
@@ -304,10 +302,8 @@ func getWorkflowTemplateDAGTasks(flowTriggers []v1alpha1base.BaseTrigger, flowSt
 					stepArtifact := workflowsv1.Artifact{
 						Name: fmt.Sprintf("artifact%d", i),
 						Path: fmt.Sprintf("/artifacts%s", step.Artifacts[i].Path),
-						ArtifactLocation: workflowsv1.ArtifactLocation{
-							S3: &workflowsv1.S3Artifact{
-								Key: getArtifactKey(step.Artifacts[i].Key),
-							},
+						S3: &workflowsv1.S3Artifact{
+							Key: getArtifactKey(step.Artifacts[i].Key),
 						},
 						Optional: step.Artifacts[i].Optional != nil && *step.Artifacts[i].Optional,
 					}

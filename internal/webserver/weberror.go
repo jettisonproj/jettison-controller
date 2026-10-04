@@ -43,10 +43,8 @@ func newWebError(message string) WebErrorList {
 	return WebErrorList{
 		Items: []WebError{
 			{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       webErrorKind,
-					APIVersion: v1alpha1.GroupVersion.Identifier(),
-				},
+				Kind:       webErrorKind,
+				APIVersion: v1alpha1.GroupVersion.Identifier(),
 				Spec: WebErrorSpec{
 					Message: message,
 				},

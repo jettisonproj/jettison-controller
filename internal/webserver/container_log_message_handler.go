@@ -131,14 +131,10 @@ func (s *FlowWatcher) sendLogLines(
 	s.sendConn(conn, ContainerLogList{
 		Items: []ContainerLog{
 			{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       containerLogKind,
-					APIVersion: v1alpha1.GroupVersion.Identifier(),
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: containerLogMessageData.Namespace,
-					Name:      containerLogMessageData.PodName,
-				},
+				Kind:       containerLogKind,
+				APIVersion: v1alpha1.GroupVersion.Identifier(),
+				Namespace:  containerLogMessageData.Namespace,
+				Name:       containerLogMessageData.PodName,
 				Spec: ContainerLogSpec{
 					ContainerName: containerLogMessageData.ContainerName,
 					LogLines:      logLines,

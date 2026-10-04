@@ -7,7 +7,6 @@ import (
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	workflows "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
@@ -71,13 +70,9 @@ func getWorkflowTemplate(
 	}
 
 	workflowTemplate := workflowsv1.Workflow{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       workflows.WorkflowKind,
-			APIVersion: workflows.APIVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: flow.Name + "-",
-		},
+		Kind:         workflows.WorkflowKind,
+		APIVersion:   workflows.APIVersion,
+		GenerateName: flow.Name + "-",
 		Spec: workflowsv1.WorkflowSpec{
 			Templates:  templates,
 			Entrypoint: "main",

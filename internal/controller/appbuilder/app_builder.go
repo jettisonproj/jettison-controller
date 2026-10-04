@@ -59,11 +59,9 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 
 				project := &cdv1.AppProject{
 					TypeMeta: projectTypeMeta,
-					ObjectMeta: metav1.ObjectMeta{
-						// The repo org and project name match
-						Name:      repoOrg,
-						Namespace: argocdNamespace,
-					},
+					// The repo org and project name match
+					Name:      repoOrg,
+					Namespace: argocdNamespace,
 					Spec: cdv1.AppProjectSpec{
 						SourceRepos: []string{sourceRepoGlob},
 						Destinations: []cdv1.ApplicationDestination{
@@ -95,12 +93,10 @@ func BuildArgoApps(flowSteps []v1alpha1base.BaseStep) ([]*cdv1.AppProject, []*cd
 				stepEnabled := step.PauseReason == nil || strings.TrimSpace(*step.PauseReason) == ""
 				application := &cdv1.Application{
 					TypeMeta: applicationTypeMeta,
-					ObjectMeta: metav1.ObjectMeta{
-						Name: appName,
-						// The repo org and application namespace match
-						Namespace:  repoOrg,
-						Finalizers: []string{defaultFinalizer},
-					},
+					Name:     appName,
+					// The repo org and application namespace match
+					Namespace:  repoOrg,
+					Finalizers: []string{defaultFinalizer},
 					Spec: cdv1.ApplicationSpec{
 						Source: &cdv1.ApplicationSource{
 							RepoURL:        step.RepoUrl,

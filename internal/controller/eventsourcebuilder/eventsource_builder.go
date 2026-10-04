@@ -3,7 +3,6 @@ package eventsourcebuilder
 import (
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -37,20 +36,16 @@ var (
 		// if apiToken is provided controller will create webhook on GitHub repo
 		// +optional
 		APIToken: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				// Name of the K8s secret that contains the access token
-				Name: "github-access",
-			},
+			// Name of the K8s secret that contains the access token
+			Name: "github-access",
 			// Key within the K8s secret whose corresponding value (must be base64 encoded) is access token
 			Key: "token",
 		},
 		// WebhookSecret refers to K8s secret that stores the github hook secret
 		// +optional
 		WebhookSecret: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				// Name of the K8s secret that contains the hook secret
-				Name: "github-access",
-			},
+			// Name of the K8s secret that contains the hook secret
+			Name: "github-access",
 			// Key within the K8s secret whose corresponding value (must be base64 encoded) is hook secret
 			Key: "secret",
 		},
@@ -67,14 +62,10 @@ var (
 	}
 
 	eventSource = eventsv1.EventSource{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       eventsv1.EventSourceGroupVersionKind.Kind,
-			APIVersion: eventsv1.SchemeGroupVersion.String(),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: eventSourceNamespace,
-			Name:      eventSourceName,
-		},
+		Kind:       eventsv1.EventSourceGroupVersionKind.Kind,
+		APIVersion: eventsv1.SchemeGroupVersion.String(),
+		Namespace:  eventSourceNamespace,
+		Name:       eventSourceName,
 		Spec: eventsv1.EventSourceSpec{
 			Service: &eventsv1.Service{
 				Ports: []corev1.ServicePort{
