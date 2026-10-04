@@ -7,7 +7,6 @@ import (
 	workflows "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -98,10 +97,8 @@ var (
 			// Mount the configuration so we can update the git status
 			{
 				Name: "github-key",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: "github-key",
-					},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "github-key",
 				},
 			},
 		},
@@ -164,65 +161,61 @@ var (
 		ContainerSet: &workflowsv1.ContainerSetTemplate{
 			Containers: []workflowsv1.ContainerNode{
 				{
-					Container: corev1.Container{
-						Name:  "docker-build-diff-check-pr",
-						Image: deployStepsDockerBuildDiffCheckImage,
-						Args: []string{
-							"./docker-build-diff-check-pr.sh",
-							"{{inputs.parameters.repo}}",
-							"/workspace",
-							"{{inputs.parameters.revision}}",
-							"{{inputs.parameters.revision-ref}}",
-							"{{inputs.parameters.base-revision}}",
-							"{{inputs.parameters.base-revision-ref}}",
-							"{{inputs.parameters.dockerfile-path}}",
-							"{{inputs.parameters.docker-context-dir}}",
-							"/workspace/jettison-deploy-step-status.txt",
-							"/repo",
-						},
+					Name:  "docker-build-diff-check-pr",
+					Image: deployStepsDockerBuildDiffCheckImage,
+					Args: []string{
+						"./docker-build-diff-check-pr.sh",
+						"{{inputs.parameters.repo}}",
+						"/workspace",
+						"{{inputs.parameters.revision}}",
+						"{{inputs.parameters.revision-ref}}",
+						"{{inputs.parameters.base-revision}}",
+						"{{inputs.parameters.base-revision-ref}}",
+						"{{inputs.parameters.dockerfile-path}}",
+						"{{inputs.parameters.docker-context-dir}}",
+						"/workspace/jettison-deploy-step-status.txt",
+						"/repo",
 					},
 				},
 				{
-					Container: corev1.Container{
-						Name:  "main",
-						Image: deployStepsDockerBuildImage,
-						Args: []string{
-							"pr",
-							"--clone-path",
-							"/workspace",
-							"--dockerfile",
-							"{{inputs.parameters.dockerfile-path}}",
-							"--docker-context-dir",
-							"{{inputs.parameters.docker-context-dir}}",
-							"--status-file",
-							"/workspace/jettison-deploy-step-status.txt",
-							"--artifacts-dir",
-							"/artifacts",
-							"--num-artifacts",
-							"{{inputs.parameters.num-artifacts}}",
+					Name:  "main",
+					Image: deployStepsDockerBuildImage,
+					Args: []string{
+						"pr",
+						"--clone-path",
+						"/workspace",
+						"--dockerfile",
+						"{{inputs.parameters.dockerfile-path}}",
+						"--docker-context-dir",
+						"{{inputs.parameters.docker-context-dir}}",
+						"--status-file",
+						"/workspace/jettison-deploy-step-status.txt",
+						"--artifacts-dir",
+						"/artifacts",
+						"--num-artifacts",
+						"{{inputs.parameters.num-artifacts}}",
+					},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "BUILDKITD_FLAGS",
+							Value: "--oci-worker-no-process-sandbox",
 						},
-						Env: []corev1.EnvVar{
-							{
-								Name:  "BUILDKITD_FLAGS",
-								Value: "--oci-worker-no-process-sandbox",
-							},
+					},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  &buildKitUid,
+						RunAsGroup: &buildKitGid,
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeUnconfined,
 						},
-						SecurityContext: &corev1.SecurityContext{
-							RunAsUser:  &buildKitUid,
-							RunAsGroup: &buildKitGid,
-							SeccompProfile: &corev1.SeccompProfile{
-								Type: corev1.SeccompProfileTypeUnconfined,
-							},
-							AppArmorProfile: &corev1.AppArmorProfile{
-								Type: corev1.AppArmorProfileTypeUnconfined,
-							},
+						AppArmorProfile: &corev1.AppArmorProfile{
+							Type: corev1.AppArmorProfileTypeUnconfined,
 						},
-						VolumeMounts: []corev1.VolumeMount{
-							// Mount the BuildKit cache in case a build is needed
-							{
-								Name:      "buildkit-cache",
-								MountPath: "/home/user/.local/share/buildkit",
-							},
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						// Mount the BuildKit cache in case a build is needed
+						{
+							Name:      "buildkit-cache",
+							MountPath: "/home/user/.local/share/buildkit",
 						},
 					},
 					Dependencies: []string{"docker-build-diff-check-pr"},
@@ -244,25 +237,19 @@ var (
 		Volumes: []corev1.Volume{
 			// Create a volume to share a repo workspace between the docker-build steps
 			{
-				Name: "docker-build-pr-workspace",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "docker-build-pr-workspace",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			// Create a volume to share test artifacts between the docker-build steps
 			{
-				Name: "docker-build-pr-artifacts",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "docker-build-pr-artifacts",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			// Use a pre-created volume to re-use the build cache between runs
 			{
 				Name: "buildkit-cache",
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: "buildkit-cache-pvc",
-					},
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "buildkit-cache-pvc",
 				},
 			},
 		},
@@ -330,78 +317,74 @@ var (
 		ContainerSet: &workflowsv1.ContainerSetTemplate{
 			Containers: []workflowsv1.ContainerNode{
 				{
-					Container: corev1.Container{
-						Name:  "docker-build-diff-check-commit",
-						Image: deployStepsDockerBuildDiffCheckImage,
-						Args: []string{
-							"./docker-build-diff-check-commit.sh",
-							"{{inputs.parameters.repo}}",
-							"/workspace",
-							"{{inputs.parameters.revision}}",
-							"{{inputs.parameters.revision-ref}}",
-							"{{inputs.parameters.dockerfile-path}}",
-							"{{inputs.parameters.docker-context-dir}}",
-							"/workspace/jettison-deploy-step-status.txt",
-							"/repo",
-						},
+					Name:  "docker-build-diff-check-commit",
+					Image: deployStepsDockerBuildDiffCheckImage,
+					Args: []string{
+						"./docker-build-diff-check-commit.sh",
+						"{{inputs.parameters.repo}}",
+						"/workspace",
+						"{{inputs.parameters.revision}}",
+						"{{inputs.parameters.revision-ref}}",
+						"{{inputs.parameters.dockerfile-path}}",
+						"{{inputs.parameters.docker-context-dir}}",
+						"/workspace/jettison-deploy-step-status.txt",
+						"/repo",
 					},
 				},
 				{
-					Container: corev1.Container{
-						Name:  "main",
-						Image: deployStepsDockerBuildImage,
-						Args: []string{
-							"commit",
-							"--clone-path",
-							"/workspace",
-							"--revision-hash",
-							"{{inputs.parameters.revision}}",
-							"--revision-ref",
-							"{{inputs.parameters.revision-ref}}",
-							"--dockerfile",
-							"{{inputs.parameters.dockerfile-path}}",
-							"--docker-context-dir",
-							"{{inputs.parameters.docker-context-dir}}",
-							"--image-registry",
-							"{{inputs.parameters.image-registry}}",
-							"--image-repo",
-							"{{inputs.parameters.image-repo}}",
-							"--dockerfile-dir",
-							"{{inputs.parameters.dockerfile-dir}}",
-							"--status-file",
-							"/workspace/jettison-deploy-step-status.txt",
-							"--artifacts-dir",
-							"/artifacts",
-							"--num-artifacts",
-							"{{inputs.parameters.num-artifacts}}",
+					Name:  "main",
+					Image: deployStepsDockerBuildImage,
+					Args: []string{
+						"commit",
+						"--clone-path",
+						"/workspace",
+						"--revision-hash",
+						"{{inputs.parameters.revision}}",
+						"--revision-ref",
+						"{{inputs.parameters.revision-ref}}",
+						"--dockerfile",
+						"{{inputs.parameters.dockerfile-path}}",
+						"--docker-context-dir",
+						"{{inputs.parameters.docker-context-dir}}",
+						"--image-registry",
+						"{{inputs.parameters.image-registry}}",
+						"--image-repo",
+						"{{inputs.parameters.image-repo}}",
+						"--dockerfile-dir",
+						"{{inputs.parameters.dockerfile-dir}}",
+						"--status-file",
+						"/workspace/jettison-deploy-step-status.txt",
+						"--artifacts-dir",
+						"/artifacts",
+						"--num-artifacts",
+						"{{inputs.parameters.num-artifacts}}",
+					},
+					Env: []corev1.EnvVar{
+						{
+							Name:  "BUILDKITD_FLAGS",
+							Value: "--oci-worker-no-process-sandbox",
 						},
-						Env: []corev1.EnvVar{
-							{
-								Name:  "BUILDKITD_FLAGS",
-								Value: "--oci-worker-no-process-sandbox",
-							},
+					},
+					SecurityContext: &corev1.SecurityContext{
+						RunAsUser:  &buildKitUid,
+						RunAsGroup: &buildKitGid,
+						SeccompProfile: &corev1.SeccompProfile{
+							Type: corev1.SeccompProfileTypeUnconfined,
 						},
-						SecurityContext: &corev1.SecurityContext{
-							RunAsUser:  &buildKitUid,
-							RunAsGroup: &buildKitGid,
-							SeccompProfile: &corev1.SeccompProfile{
-								Type: corev1.SeccompProfileTypeUnconfined,
-							},
-							AppArmorProfile: &corev1.AppArmorProfile{
-								Type: corev1.AppArmorProfileTypeUnconfined,
-							},
+						AppArmorProfile: &corev1.AppArmorProfile{
+							Type: corev1.AppArmorProfileTypeUnconfined,
 						},
-						VolumeMounts: []corev1.VolumeMount{
-							{
-								// Mount the configuration so we can push the docker image
-								Name:      "docker-config",
-								MountPath: "/home/user/.docker",
-							},
-							// Mount the BuildKit cache in case a build is needed
-							{
-								Name:      "buildkit-cache",
-								MountPath: "/home/user/.local/share/buildkit",
-							},
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							// Mount the configuration so we can push the docker image
+							Name:      "docker-config",
+							MountPath: "/home/user/.docker",
+						},
+						// Mount the BuildKit cache in case a build is needed
+						{
+							Name:      "buildkit-cache",
+							MountPath: "/home/user/.local/share/buildkit",
 						},
 					},
 					Dependencies: []string{"docker-build-diff-check-commit"},
@@ -423,34 +406,26 @@ var (
 		Volumes: []corev1.Volume{
 			// Create a volume to share a repo workspace between the docker-build steps
 			{
-				Name: "docker-build-commit-workspace",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "docker-build-commit-workspace",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			// Create a volume to share test artifacts between the docker-build steps
 			{
-				Name: "docker-build-commit-artifacts",
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
+				Name:     "docker-build-commit-artifacts",
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 			// Mount the configuration so we can push the docker image
 			{
 				Name: "docker-config",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: "regcred",
-					},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "regcred",
 				},
 			},
 			// Use a pre-created volume to re-use the build cache between runs
 			{
 				Name: "buildkit-cache",
-				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: "buildkit-cache-pvc",
-					},
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: "buildkit-cache-pvc",
 				},
 			},
 		},
@@ -561,10 +536,8 @@ var (
 			// Mount the configuration so we can push to github
 			{
 				Name: "github-key",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: "github-key",
-					},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "github-key",
 				},
 			},
 		},
@@ -650,23 +623,17 @@ var (
 			// Mount the configuration so we can update the git status
 			{
 				Name: "github-key",
-				VolumeSource: corev1.VolumeSource{
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: "github-key",
-					},
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: "github-key",
 				},
 			},
 		},
 	}
 
 	CICDTemplate = workflowsv1.ClusterWorkflowTemplate{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       workflows.ClusterWorkflowTemplateKind,
-			APIVersion: workflows.APIVersion,
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "cicd-templates",
-		},
+		Kind:       workflows.ClusterWorkflowTemplateKind,
+		APIVersion: workflows.APIVersion,
+		Name:       "cicd-templates",
 		Spec: workflowsv1.WorkflowSpec{
 			Templates: []workflowsv1.Template{
 				GitHubCheckStartTemplate,
