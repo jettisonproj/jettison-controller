@@ -49,8 +49,7 @@ func (s BaseStepFields) GetDependsOn() []string {
 
 func (s *BaseStepFields) ApplyDefaults() {
 	if s.StepName == nil {
-		s.StepName = new(string)
-		*s.StepName = s.StepSource
+		s.StepName = new(s.StepSource)
 	}
 }
 

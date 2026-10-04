@@ -37,8 +37,7 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 			defaultActiveDeadlineSeconds = max(defaultActiveDeadlineSeconds, defaultActiveDeadlineSecondsPR)
 		case *GitHubPushTrigger:
 			if trigger.BaseRef == nil {
-				trigger.BaseRef = new(string)
-				*trigger.BaseRef = defaultBaseRef
+				trigger.BaseRef = new(defaultBaseRef)
 			}
 			defaultActiveDeadlineSeconds = max(defaultActiveDeadlineSeconds, defaultActiveDeadlineSecondsPush)
 		default:
@@ -47,8 +46,7 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 	}
 
 	if f.Spec.ActiveDeadlineSeconds == nil {
-		f.Spec.ActiveDeadlineSeconds = new(int64)
-		*f.Spec.ActiveDeadlineSeconds = defaultActiveDeadlineSeconds
+		f.Spec.ActiveDeadlineSeconds = new(defaultActiveDeadlineSeconds)
 	}
 
 	for i := range steps {
@@ -56,8 +54,7 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 		switch step := steps[i].(type) {
 		case *DockerBuildTestStep:
 			if step.DockerContextDir == nil {
-				step.DockerContextDir = new(string)
-				*step.DockerContextDir = defaultDockerContextDir
+				step.DockerContextDir = new(defaultDockerContextDir)
 			}
 
 			if step.DockerfilePath == nil {
@@ -65,8 +62,7 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 			}
 		case *DockerBuildTestPublishStep:
 			if step.DockerContextDir == nil {
-				step.DockerContextDir = new(string)
-				*step.DockerContextDir = defaultDockerContextDir
+				step.DockerContextDir = new(defaultDockerContextDir)
 			}
 
 			if step.DockerfilePath == nil {
@@ -74,8 +70,7 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 			}
 		case *ArgoCDStep:
 			if step.BaseRef == nil {
-				step.BaseRef = new(string)
-				*step.BaseRef = defaultBaseRef
+				step.BaseRef = new(defaultBaseRef)
 			}
 		default:
 			return fmt.Errorf("unknown step type: %T", step)
@@ -85,13 +80,8 @@ func (f *Flow) applyDefaults(triggers []v1alpha1base.BaseTrigger, steps []v1alph
 }
 
 func getDefaultDockerfilePath(dockerContextDir string) *string {
-	dockerfilePath := new(string)
-
 	if dockerContextDir == "" {
-		*dockerfilePath = defaultDockerfilePath
-	} else {
-		*dockerfilePath = fmt.Sprintf("%s/%s", dockerContextDir, defaultDockerfilePath)
+		return new(defaultDockerfilePath)
 	}
-
-	return dockerfilePath
+	return new(fmt.Sprintf("%s/%s", dockerContextDir, defaultDockerfilePath))
 }
