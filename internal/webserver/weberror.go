@@ -21,17 +21,22 @@ type WebErrorSpec struct {
 
 // WebError is the Schema for the errors returned by the webserver
 type WebError struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.TypeMeta `json:",inline"`
 
-	Spec WebErrorSpec `json:"spec,omitempty"`
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitzero"`
+
+	Spec WebErrorSpec `json:"spec"`
 }
 
 // WebErrorList contains a list of WebError.
 type WebErrorList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []WebError `json:"items"`
+
+	// +optional
+	metav1.ListMeta `json:"metadata,omitzero"`
+
+	Items []WebError `json:"items"`
 }
 
 func newWebError(message string) WebErrorList {
