@@ -56,16 +56,8 @@ func (c *CommonClient) Delete(deleteUrl string) error {
 	return nil
 }
 
-// Ideally, if generics were supported on methods, we could return the
-// appropriate type here
-func (c *CommonClient) Get(getUrl string) ([]byte, error) {
-	return c.clientset.RESTClient().Get().AbsPath(getUrl).DoRaw(context.Background())
-}
-
-// Since generics are not supported on methods, use a function for the Get call
-// as a workaround
-func CommonGet[T any](c *CommonClient, getUrl string) (*T, error) {
-	resourceBytes, err := c.Get(getUrl)
+func (c *CommonClient) Get[T any](getUrl string) (*T, error) {
+	resourceBytes, err := c.clientset.RESTClient().Get().AbsPath(getUrl).DoRaw(context.Background())
 	if err != nil {
 		// return err to propagate ErrNotFound
 		return nil, err

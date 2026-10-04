@@ -40,7 +40,7 @@ func (c *FlowClient) Get(flowName string) (*v1alpha1.Flow, error) {
 	flowUrl := c.getFlowUrl(flowName)
 
 	// return err to propagate ErrorNotFound
-	return CommonGet[v1alpha1.Flow](c.client, flowUrl)
+	return c.client.Get[v1alpha1.Flow](flowUrl)
 }
 
 func (c *FlowClient) getFlowUrl(flowName string) string {

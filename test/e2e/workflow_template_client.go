@@ -18,7 +18,7 @@ func (c *WorkflowTemplateClient) Get() (*workflowsv1.ClusterWorkflowTemplate, er
 	workflowTemplateUrl := c.getWorkflowTemplateUrl()
 
 	// return err to propagate ErrorNotFound
-	return CommonGet[workflowsv1.ClusterWorkflowTemplate](c.client, workflowTemplateUrl)
+	return c.client.Get[workflowsv1.ClusterWorkflowTemplate](workflowTemplateUrl)
 }
 
 func (c *WorkflowTemplateClient) getWorkflowTemplateUrl() string {
