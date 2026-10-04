@@ -40,7 +40,7 @@ type FlowWatcher struct {
 	scheme *runtime.Scheme
 
 	// Sends notifications to the websockets
-	notifyAll chan interface{}
+	notifyAll chan any
 
 	// Registers a websocket
 	register chan *WebConn
@@ -58,7 +58,7 @@ type FlowWatcher struct {
 	connSubscriptions map[ResourceSubscription]map[*WebConn]bool
 
 	// Sends notification to subscribers
-	notifySubscriptions chan interface{}
+	notifySubscriptions chan any
 
 	// MySQL workflows are sent as initial resources
 	mysqlWorkflows []workflowsv1.Workflow
@@ -129,7 +129,7 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 	go s.readConn(conn)
 }
 
-func (s *FlowWatcher) sendConn(conn *WebConn, message interface{}) {
+func (s *FlowWatcher) sendConn(conn *WebConn, message any) {
 	if conn.ctx.Err() != nil {
 		conn.log.Info("skip message send due to already closed write channel")
 		return
@@ -329,7 +329,7 @@ func (s *FlowWatcher) unregisterConn(conn *WebConn) {
 
 // Send the message to the subscribers
 // This should only be called from the channel receiver to prevent concurrent writes
-func (s *FlowWatcher) notifyResourceSubscriptions(obj interface{}) {
+func (s *FlowWatcher) notifyResourceSubscriptions(obj any) {
 	switch resource := obj.(type) {
 	case *corev1.Pod:
 		resourceSubscription := ResourceSubscription{
@@ -421,7 +421,7 @@ func (s *FlowWatcher) setupWatcher() error {
 	return nil
 }
 
-func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
+func (s *FlowWatcher) OnAdd(obj any, isInInitialList bool) {
 	switch resource := obj.(type) {
 	case *v1alpha1.Flow:
 		setupLog.Info(
@@ -473,7 +473,7 @@ func (s *FlowWatcher) OnAdd(obj interface{}, isInInitialList bool) {
 	}
 }
 
-func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
+func (s *FlowWatcher) OnUpdate(oldObj, newObj any) {
 	switch newResource := newObj.(type) {
 	case *v1alpha1.Flow:
 		setupLog.Info(
@@ -521,7 +521,7 @@ func (s *FlowWatcher) OnUpdate(oldObj, newObj interface{}) {
 	}
 }
 
-func (s *FlowWatcher) OnDelete(obj interface{}) {
+func (s *FlowWatcher) OnDelete(obj any) {
 	switch resource := obj.(type) {
 	case *v1alpha1.Flow:
 		setupLog.Info(
@@ -608,7 +608,7 @@ func (s *FlowWatcher) OnDelete(obj interface{}) {
 	}
 }
 
-func (s *FlowWatcher) onSubscriptionResourceAdd(obj interface{}, isInInitialList bool) {
+func (s *FlowWatcher) onSubscriptionResourceAdd(obj any, isInInitialList bool) {
 	switch resource := obj.(type) {
 	case *corev1.Pod:
 		setupLog.Info(
@@ -633,7 +633,7 @@ func (s *FlowWatcher) onSubscriptionResourceAdd(obj interface{}, isInInitialList
 	}
 }
 
-func (s *FlowWatcher) onSubscriptionResourceUpdate(oldObj, newObj interface{}) {
+func (s *FlowWatcher) onSubscriptionResourceUpdate(oldObj, newObj any) {
 	switch newResource := newObj.(type) {
 	case *corev1.Pod:
 		setupLog.Info(
@@ -657,7 +657,7 @@ func (s *FlowWatcher) onSubscriptionResourceUpdate(oldObj, newObj interface{}) {
 	}
 }
 
-func (s *FlowWatcher) onSubscriptionResourceDelete(obj interface{}) {
+func (s *FlowWatcher) onSubscriptionResourceDelete(obj any) {
 	switch resource := obj.(type) {
 	case *corev1.Pod:
 		setupLog.Info(
