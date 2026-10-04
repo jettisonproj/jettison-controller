@@ -94,11 +94,8 @@ func (s *SyncClient) Sync(
 	}(conn)
 
 	// Sync application
-	prune := true
-	prunePtr := &prune
-
 	syncRequest := &application.ApplicationSyncRequest{
-		Prune:        prunePtr,
+		Prune:        new(true),
 		Name:         &name,
 		AppNamespace: &namespace,
 		SyncOptions: &application.SyncOptions{
