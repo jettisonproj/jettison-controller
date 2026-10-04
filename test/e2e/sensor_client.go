@@ -16,10 +16,10 @@ type SensorClient struct {
 }
 
 func (c *SensorClient) Get(flowName string) (*eventsv1.Sensor, error) {
-	flowUrl := c.getSensorUrl(flowName)
+	sensorUrl := c.getSensorUrl(flowName)
 
 	// return err to propagate ErrorNotFound
-	return CommonGet[eventsv1.Sensor](c.client, flowUrl)
+	return c.client.Get[eventsv1.Sensor](sensorUrl)
 }
 
 func (c *SensorClient) getSensorUrl(flowName string) string {
