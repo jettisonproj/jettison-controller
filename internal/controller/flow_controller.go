@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	cdv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
@@ -452,10 +453,8 @@ func mergeOwnedRepos(
 	ownedRepos := githubEventSource.Repositories
 	for i := range ownedRepos {
 		if ownedRepos[i].Owner == repoOrg {
-			for j := range ownedRepos[i].Names {
-				if ownedRepos[i].Names[j] == repoName {
-					return false
-				}
+			if slices.Contains(ownedRepos[i].Names, repoName) {
+				return false
 			}
 			ownedRepos[i].Names = append(ownedRepos[i].Names, repoName)
 			githubEventSource.Repositories = ownedRepos
