@@ -179,16 +179,16 @@ func (s *FlowWatcher) sendPod(
 // ContainerLogList contains a list of ContainerLog.
 type ContainerLogList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.ListMeta `json:"metadata,omitzero"`
 	Items           []ContainerLog `json:"items"`
 }
 
 // ContainerLog is the Schema for the logs returned by the webserver
 type ContainerLog struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitzero"`
 
-	Spec ContainerLogSpec `json:"spec,omitempty"`
+	Spec ContainerLogSpec `json:"spec,omitzero"`
 }
 
 // ContainerLog defines a log response for the webserver in a way that's consistent

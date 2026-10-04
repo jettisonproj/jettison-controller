@@ -34,7 +34,7 @@ type FlowSpec struct {
 	// Flows which miss the deadline will be counted as failed.
 	// Defaults to 900 (15 minutes) for PRs and 3600 (1 hr) for pushes
 	// +optional
-	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitzero"`
 	// List of triggers for running the flow.
 	// See the concrete Trigger types in this package
 	Triggers []RawMessage `json:"triggers"`
@@ -63,7 +63,7 @@ type FlowStatus struct {
 	// are considered a guaranteed API.
 	// Flow.status.conditions.Message is a human readable message indicating details about the transition.
 	// For further information see: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
-	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+	Conditions []metav1.Condition `json:"conditions,omitzero" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true
@@ -72,10 +72,10 @@ type FlowStatus struct {
 // Flow is the Schema for the flows API.
 type Flow struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata,omitzero"`
 
-	Spec   FlowSpec   `json:"spec,omitempty"`
-	Status FlowStatus `json:"status,omitempty"`
+	Spec   FlowSpec   `json:"spec,omitzero"`
+	Status FlowStatus `json:"status,omitzero"`
 }
 
 // +kubebuilder:object:root=true
@@ -83,7 +83,7 @@ type Flow struct {
 // FlowList contains a list of Flow.
 type FlowList struct {
 	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
+	metav1.ListMeta `json:"metadata,omitzero"`
 	Items           []Flow `json:"items"`
 }
 

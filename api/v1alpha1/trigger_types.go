@@ -39,7 +39,7 @@ type GitHubPullRequestTrigger struct {
 	// See https://docs.github.com/en/webhooks/webhook-events-and-payloads#pull_request
 	// Defaults to [opened, reopened, synchronize]
 	// +optional
-	PullRequestEvents []string `json:"pullRequestEvents,omitempty"`
+	PullRequestEvents []string `json:"pullRequestEvents,omitzero"`
 }
 
 type GitHubPushTrigger struct {
@@ -51,5 +51,5 @@ type GitHubPushTrigger struct {
 	// branch name such as "main" or "master"
 	// Defaults to "main"
 	// +optional
-	BaseRef *string `json:"baseRef,omitempty"`
+	BaseRef *string `json:"baseRef,omitzero"`
 }

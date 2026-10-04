@@ -24,15 +24,15 @@ var (
 type BaseStepFields struct {
 	// Optional name of step for the flow. Can be a description
 	// Defaults to the StepSource
-	StepName *string `json:"stepName,omitempty"`
+	StepName *string `json:"stepName,omitzero"`
 	// The type of step for the flow
 	StepSource string `json:"stepSource"`
 	// The names of steps which this step depends on
-	DependsOn []string `json:"dependsOn,omitempty"`
+	DependsOn []string `json:"dependsOn,omitzero"`
 	// Optional volumes to be used in the step container
-	Volumes []corev1.Volume `json:"volumes,omitempty"`
+	Volumes []corev1.Volume `json:"volumes,omitzero"`
 	// Optional volume mounts for the step container
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitzero"`
 }
 
 func (s BaseStepFields) GetStepName() string {
@@ -63,7 +63,7 @@ type DockerBuildArtifact struct {
 	// If marked as optional, the step will instead continue without
 	// saving the artifact
 	// +optional
-	Optional *bool `json:"optional,omitempty"`
+	Optional *bool `json:"optional,omitzero"`
 }
 
 type DockerBuildTestStep struct {
@@ -73,14 +73,14 @@ type DockerBuildTestStep struct {
 	// Defaults to "Dockerfile" or "<DockerContextDir>/Dockerfile"
 	// if DockerContextDir is set
 	// +optional
-	DockerfilePath *string `json:"dockerfilePath,omitempty"`
+	DockerfilePath *string `json:"dockerfilePath,omitzero"`
 	// Optional Docker context directory used for the build.
 	// Defaults to "", which is the root of the repo
 	// +optional
-	DockerContextDir *string `json:"dockerContextDir,omitempty"`
+	DockerContextDir *string `json:"dockerContextDir,omitzero"`
 	// Optional build artifacts to archive.
 	// +optional
-	Artifacts []DockerBuildArtifact `json:"artifacts,omitempty"`
+	Artifacts []DockerBuildArtifact `json:"artifacts,omitzero"`
 }
 
 type DockerBuildTestPublishStep struct {
@@ -90,14 +90,14 @@ type DockerBuildTestPublishStep struct {
 	// Defaults to "Dockerfile" or "<DockerContextDir>/Dockerfile"
 	// if DockerContextDir is set
 	// +optional
-	DockerfilePath *string `json:"dockerfilePath,omitempty"`
+	DockerfilePath *string `json:"dockerfilePath,omitzero"`
 	// Optional Docker context directory used for the build.
 	// Defaults to "", which is the root of the repo
 	// +optional
-	DockerContextDir *string `json:"dockerContextDir,omitempty"`
+	DockerContextDir *string `json:"dockerContextDir,omitzero"`
 	// Optional build artifacts to archive.
 	// +optional
-	Artifacts []DockerBuildArtifact `json:"artifacts,omitempty"`
+	Artifacts []DockerBuildArtifact `json:"artifacts,omitzero"`
 }
 
 // Deploy using ArgoCD.
@@ -118,9 +118,9 @@ type ArgoCDStep struct {
 	// branch name such as "main" or "master"
 	// Defaults to "main"
 	// +optional
-	BaseRef *string `json:"baseRef,omitempty"`
+	BaseRef *string `json:"baseRef,omitzero"`
 	// Optional, if non-blank, this effectively pauses the step
 	// by disabling the automated syncs
 	// +optional
-	PauseReason *string `json:"pauseReason,omitempty"`
+	PauseReason *string `json:"pauseReason,omitzero"`
 }
