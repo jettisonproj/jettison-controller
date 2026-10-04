@@ -22,5 +22,5 @@ type WebConn struct {
 
 	// The write channel for the connection
 	// Used to synchronize writes. Enforces one writer
-	writeChan chan interface{}
+	writeChan chan any
 }

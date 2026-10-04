@@ -121,13 +121,13 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 		client:              s.Client,
 		cache:               s.Cache,
 		scheme:              s.Scheme,
-		notifyAll:           make(chan interface{}),
+		notifyAll:           make(chan any),
 		register:            make(chan *WebConn),
 		unregister:          make(chan *WebConn),
 		conns:               make(map[*WebConn]bool),
 		subscribe:           make(chan WebConnResourceSubscription),
 		connSubscriptions:   make(map[ResourceSubscription]map[*WebConn]bool),
-		notifySubscriptions: make(chan interface{}),
+		notifySubscriptions: make(chan any),
 		mysqlWorkflows:      mysqlWorkflows,
 		kubeClient:          kubeClient,
 	}
@@ -151,7 +151,7 @@ func (s *FlowWebServer) handleWebsocket(w http.ResponseWriter, r *http.Request) 
 		cancelCauseFunc: cancelCauseFunc,
 		log:             log.FromContext(ctx),
 		conn:            conn,
-		writeChan:       make(chan interface{}),
+		writeChan:       make(chan any),
 	}
 }
 
