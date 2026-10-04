@@ -86,6 +86,8 @@ spec:
                           value: "{{inputs.parameters.repo-short}}"
                         - name: dockerfile-dir
                           value: ""
+                        - name: num-artifacts
+                          value: "0"
                       templateRef:
                         name: cicd-templates
                         template: docker-build-test-publish

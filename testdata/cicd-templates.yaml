@@ -59,6 +59,7 @@ spec:
       - name: revision-ref
       - name: base-revision
       - name: base-revision-ref
+      - name: num-artifacts
     containerSet:
       containers:
       - name: docker-build-diff-check-pr
@@ -91,6 +92,8 @@ spec:
         - /workspace/jettison-deploy-step-status.txt
         - --artifacts-dir
         - /artifacts
+        - --num-artifacts
+        - "{{inputs.parameters.num-artifacts}}"
         env:
         - name: "BUILDKITD_FLAGS"
           value: "--oci-worker-no-process-sandbox"
@@ -141,6 +144,7 @@ spec:
       - name: dockerfile-dir
       - name: image-registry
         value: "ghcr.io/"
+      - name: num-artifacts
     containerSet:
       containers:
       - name: docker-build-diff-check-commit
@@ -181,6 +185,8 @@ spec:
         - /workspace/jettison-deploy-step-status.txt
         - --artifacts-dir
         - /artifacts
+        - --num-artifacts
+        - "{{inputs.parameters.num-artifacts}}"
         env:
         - name: "BUILDKITD_FLAGS"
           value: "--oci-worker-no-process-sandbox"

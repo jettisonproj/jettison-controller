@@ -155,6 +155,10 @@ var (
 				{
 					Name: "base-revision-ref",
 				},
+				// num-artifacts - the number of expected artifacts
+				{
+					Name: "num-artifacts",
+				},
 			},
 		},
 		ContainerSet: &workflowsv1.ContainerSetTemplate{
@@ -194,6 +198,8 @@ var (
 							"/workspace/jettison-deploy-step-status.txt",
 							"--artifacts-dir",
 							"/artifacts",
+							"--num-artifacts",
+							"{{inputs.parameters.num-artifacts}}",
 						},
 						Env: []corev1.EnvVar{
 							{
@@ -315,6 +321,10 @@ var (
 					Name:  "image-registry",
 					Value: workflowsv1.AnyStringPtr(imageRegistry),
 				},
+				// num-artifacts - the number of expected artifacts
+				{
+					Name: "num-artifacts",
+				},
 			},
 		},
 		ContainerSet: &workflowsv1.ContainerSetTemplate{
@@ -362,6 +372,8 @@ var (
 							"/workspace/jettison-deploy-step-status.txt",
 							"--artifacts-dir",
 							"/artifacts",
+							"--num-artifacts",
+							"{{inputs.parameters.num-artifacts}}",
 						},
 						Env: []corev1.EnvVar{
 							{
