@@ -63,7 +63,7 @@ spec:
     containerSet:
       containers:
       - name: docker-build-diff-check-pr
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:ba8c89a72600d23e81065c8d215ff35524d9aae8"
         args:
         - "./docker-build-diff-check-pr.sh"
         - "{{inputs.parameters.repo}}"
@@ -148,7 +148,7 @@ spec:
     containerSet:
       containers:
       - name: docker-build-diff-check-commit
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:ba8c89a72600d23e81065c8d215ff35524d9aae8"
         args:
         - "./docker-build-diff-check-commit.sh"
         - "{{inputs.parameters.repo}}"
