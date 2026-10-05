@@ -24,7 +24,7 @@ const (
 	// Deploy Step Image for GitHub Checks
 	deployStepsGitHubCheckImage = "ghcr.io/jettisonproj/deploy-steps/github-check:e0d5ee67db38370b45a574df26e4c98fe2b36a5c"
 	// Deploy Step Image for ArgoCD Config Update
-	deployStepsArgoCDImage = "ghcr.io/jettisonproj/deploy-steps/argocd:d244572649d31932156e03c5a481ba143cc8491d"
+	deployStepsArgoCDImage = "ghcr.io/jettisonproj/deploy-steps/argocd:2d02427883e13b1c94486842e869ec5cb2c31d8d"
 	// Deploy Step Image for Docker Build Diff Check
 	deployStepsDockerBuildDiffCheckImage = "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:ba8c89a72600d23e81065c8d215ff35524d9aae8"
 	// Deploy Step Image for Docker Build
