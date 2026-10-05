@@ -203,7 +203,7 @@ spec:
                       - "{{inputs.parameters.docker-context-dir}}"
                       - "/workspace/jettison-deploy-step-status.txt"
                       - "/repo"
-                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:ba8c89a72600d23e81065c8d215ff35524d9aae8"
                       name: "docker-build-diff-check-commit"
                       volumeMounts:
                       - mountPath: /volume-mount-path-1
@@ -247,7 +247,7 @@ spec:
                         # To change UID/GID, you need to rebuild the image
                         runAsUser: 1000
                         runAsGroup: 1000
-                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:0f4e030e951f69f6bb4937e59fba0ebbad73c03d"
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
                       name: main
                       dependencies:
                       - "docker-build-diff-check-commit"
