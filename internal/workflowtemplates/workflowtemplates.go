@@ -22,7 +22,7 @@ const (
 	// GitHub App User Name of jettisonproj app
 	githubAppUserName = "jettisonproj[bot]"
 	// Deploy Step Image for GitHub Checks
-	deployStepsGitHubCheckImage = "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
+	deployStepsGitHubCheckImage = "ghcr.io/jettisonproj/deploy-steps/github-check:e0d5ee67db38370b45a574df26e4c98fe2b36a5c"
 	// Deploy Step Image for ArgoCD Config Update
 	deployStepsArgoCDImage = "ghcr.io/jettisonproj/deploy-steps/argocd:d244572649d31932156e03c5a481ba143cc8491d"
 	// Deploy Step Image for Docker Build Diff Check
