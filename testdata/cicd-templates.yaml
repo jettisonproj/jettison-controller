@@ -21,7 +21,7 @@ spec:
       - name: event-type
       - name: revision
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
+      image: "ghcr.io/jettisonproj/deploy-steps/github-check:e0d5ee67db38370b45a574df26e4c98fe2b36a5c"
       args:
       - "./github-check-start.sh"
       - "{{inputs.parameters.github-app-id}}"
@@ -63,7 +63,7 @@ spec:
     containerSet:
       containers:
       - name: docker-build-diff-check-pr
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:ba8c89a72600d23e81065c8d215ff35524d9aae8"
         args:
         - "./docker-build-diff-check-pr.sh"
         - "{{inputs.parameters.repo}}"
@@ -79,7 +79,7 @@ spec:
       - name: main
         dependencies:
         - docker-build-diff-check-pr
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:0f4e030e951f69f6bb4937e59fba0ebbad73c03d"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
         args:
         - pr
         - --clone-path
@@ -148,7 +148,7 @@ spec:
     containerSet:
       containers:
       - name: docker-build-diff-check-commit
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:1e1103b7308cf97af3bdd44747743dac507e210b"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:ba8c89a72600d23e81065c8d215ff35524d9aae8"
         args:
         - "./docker-build-diff-check-commit.sh"
         - "{{inputs.parameters.repo}}"
@@ -160,7 +160,7 @@ spec:
         - "/workspace/jettison-deploy-step-status.txt"
         - "/repo"
       - name: main
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:0f4e030e951f69f6bb4937e59fba0ebbad73c03d"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
         dependencies:
         - docker-build-diff-check-commit
         args:
@@ -255,7 +255,7 @@ spec:
       - name: argocd-app-namespace
       - name: argocd-app-name
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/argocd:d244572649d31932156e03c5a481ba143cc8491d"
+      image: "ghcr.io/jettisonproj/deploy-steps/argocd:2d02427883e13b1c94486842e869ec5cb2c31d8d"
       args:
       - "./deploy-step-argocd.sh"
       - "{{inputs.parameters.deploy-repo}}"
@@ -351,7 +351,7 @@ spec:
       - name: check-run-id
       - name: workflow-status
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
+      image: "ghcr.io/jettisonproj/deploy-steps/github-check:e0d5ee67db38370b45a574df26e4c98fe2b36a5c"
       args:
       - "./github-check-complete.sh"
       - "{{inputs.parameters.github-app-id}}"
