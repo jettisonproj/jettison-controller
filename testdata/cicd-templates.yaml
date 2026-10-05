@@ -21,7 +21,7 @@ spec:
       - name: event-type
       - name: revision
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
+      image: "ghcr.io/jettisonproj/deploy-steps/github-check:e0d5ee67db38370b45a574df26e4c98fe2b36a5c"
       args:
       - "./github-check-start.sh"
       - "{{inputs.parameters.github-app-id}}"
@@ -351,7 +351,7 @@ spec:
       - name: check-run-id
       - name: workflow-status
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/github-check:a8043f90be5a8330782173647ea245fba308ac94"
+      image: "ghcr.io/jettisonproj/deploy-steps/github-check:e0d5ee67db38370b45a574df26e4c98fe2b36a5c"
       args:
       - "./github-check-complete.sh"
       - "{{inputs.parameters.github-app-id}}"
