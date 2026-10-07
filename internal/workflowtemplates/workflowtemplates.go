@@ -30,7 +30,7 @@ const (
 	// Deploy Step Image for Docker Build
 	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
 	// Deploy Step Image for GitHub PR Creation
-	deployStepsGitHubCreatePr = "ghcr.io/jettisonproj/deploy-steps/create-pr:2cf130f0430d5dcd0cb316a776c7c7076075d911"
+	deployStepsGitHubCreatePr = "ghcr.io/jettisonproj/deploy-steps/create-pr:74afef0afbe814a2204157d092b56ff27ad01be1"
 )
 
 var (
@@ -638,6 +638,7 @@ var (
 				"{{inputs.parameters.image-repo}}",             // 10
 				"{{inputs.parameters.build-revision}}",         // 11
 				"{{inputs.parameters.dockerfile-dir}}",         // 12
+				"/tmp/jettison-created-pr-number.txt",          // 13
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
@@ -653,6 +654,18 @@ var (
 				Name: "github-key",
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: "github-key",
+				},
+			},
+		},
+		// export the jettison-created-pr-number to link to the created PR
+		// it can be accessed under the object: {tasks.<task-name>.outputs.parameters.jettison-created-pr-number}}
+		Outputs: workflowsv1.Outputs{
+			Parameters: []workflowsv1.Parameter{
+				{
+					Name: "jettison-created-pr-number",
+					ValueFrom: &workflowsv1.ValueFrom{
+						Path: "/tmp/jettison-created-pr-number.txt",
+					},
 				},
 			},
 		},
