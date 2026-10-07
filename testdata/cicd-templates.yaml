@@ -313,7 +313,7 @@ spec:
       - name: image-registry
         value: "ghcr.io/"
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/create-pr:2cf130f0430d5dcd0cb316a776c7c7076075d911"
+      image: "ghcr.io/jettisonproj/deploy-steps/create-pr:74afef0afbe814a2204157d092b56ff27ad01be1"
       args:
       - "./deploy-step-create-pr.sh"
       - "{{inputs.parameters.target-repo}}"
