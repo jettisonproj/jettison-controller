@@ -30,7 +30,7 @@ const (
 	// Deploy Step Image for Docker Build
 	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
 	// Deploy Step Image for GitHub PR Creation
-	deployStepsGitHubCreatePr = "ghcr.io/jettisonproj/deploy-steps/create-pr:74afef0afbe814a2204157d092b56ff27ad01be1"
+	deployStepsGitHubCreatePr = "ghcr.io/jettisonproj/deploy-steps/create-pr:636f1db062a7f8fd5b1a8d177a310e1412d525a8"
 )
 
 var (
