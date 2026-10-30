@@ -28,6 +28,10 @@ import (
 	"github.com/jettisonproj/jettison-controller/internal/webserver/argosync"
 )
 
+const (
+	auxWsFlag = "aux=true"
+)
+
 var (
 	upgrader = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
@@ -145,6 +149,8 @@ func (s *FlowWebServer) handleWebsocket(w http.ResponseWriter, r *http.Request) 
 		log.FromContext(r.Context()).Error(err, "failed to get websocket connection for request")
 		return
 	}
+
+	isAuxWs := r.URL.RawQuery == auxWsFlag
 	ctx, cancelCauseFunc := context.WithCancelCause(context.Background())
 	s.flowWatcher.register <- &WebConn{
 		ctx:             ctx,
@@ -152,6 +158,7 @@ func (s *FlowWebServer) handleWebsocket(w http.ResponseWriter, r *http.Request) 
 		log:             log.FromContext(ctx),
 		conn:            conn,
 		writeChan:       make(chan any),
+		isAuxWs:         isAuxWs,
 	}
 }
 
