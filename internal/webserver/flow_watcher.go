@@ -88,7 +88,9 @@ func (s *FlowWatcher) run() {
 			s.registerResourceSubscription(webConnResourceSubscription)
 		case message := <-s.notifyAll:
 			for conn := range s.conns {
-				s.sendConn(conn, message)
+				if !conn.isAuxWs {
+					s.sendConn(conn, message)
+				}
 			}
 		case message := <-s.notifySubscriptions:
 			s.notifyResourceSubscriptions(message)
@@ -105,23 +107,27 @@ func (s *FlowWatcher) registerConn(conn *WebConn) {
 
 	go s.writeConn(conn)
 
-	var wg sync.WaitGroup
+	if conn.isAuxWs {
+		conn.log.Info("aux ws: skip sending initial resources")
+	} else {
+		var wg sync.WaitGroup
 
-	// Send the initial resources concurrently
-	conn.log.Info("sending initial resources")
-	wg.Add(1)
-	go s.sendInitialFlows(conn, &wg)
+		// Send the initial resources concurrently
+		conn.log.Info("sending initial resources")
+		wg.Add(1)
+		go s.sendInitialFlows(conn, &wg)
 
-	wg.Add(1)
-	go s.sendInitialApplications(conn, &wg)
+		wg.Add(1)
+		go s.sendInitialApplications(conn, &wg)
 
-	wg.Add(1)
-	go s.sendInitialRollouts(conn, &wg)
+		wg.Add(1)
+		go s.sendInitialRollouts(conn, &wg)
 
-	wg.Add(1)
-	go s.sendInitialWorkflows(conn, &wg)
+		wg.Add(1)
+		go s.sendInitialWorkflows(conn, &wg)
 
-	wg.Wait()
+		wg.Wait()
+	}
 
 	// Register the connection to send updates
 	s.conns[conn] = true
@@ -228,7 +234,7 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 	for {
 		messageType, message, err := conn.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
 				conn.log.Error(err, "unexpected close error")
 				panic(err)
 			}

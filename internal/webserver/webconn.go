@@ -23,4 +23,8 @@ type WebConn struct {
 	// The write channel for the connection
 	// Used to synchronize writes. Enforces one writer
 	writeChan chan any
+
+	// Whether this is an auxiliary websocket connection. For example,
+	// a secondary websocket to stream container logs in a new tab
+	isAuxWs bool
 }

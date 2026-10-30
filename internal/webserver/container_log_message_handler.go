@@ -96,7 +96,11 @@ func (s *FlowWatcher) streamLogLines(
 
 			if len(logLines) > 0 {
 				s.sendLogLines(conn, containerLogMessageData, logLines)
+				logLines = logLines[:0]
 			}
+
+			// Send empty log lines to signify the end of the log stream
+			s.sendLogLines(conn, containerLogMessageData, logLines)
 
 			conn.log.Info(
 				"finished scanning log",
