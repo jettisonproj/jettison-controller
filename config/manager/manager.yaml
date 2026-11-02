@@ -67,6 +67,15 @@ spec:
           - "--workflow-mysql-address=root:root@tcp(mysql.mysql:3306)/argo"
         image: controller:latest
         name: manager
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
         ports:
         - containerPort: 2846
           name: http
