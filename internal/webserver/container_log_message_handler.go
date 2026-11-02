@@ -7,6 +7,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
@@ -51,13 +52,49 @@ func (s *FlowWatcher) streamLogLines(
 	ctx := conn.ctx
 	stream, err := podsInterface.GetLogs(containerLogMessageData.PodName, podLogOptions).Stream(ctx)
 	if err != nil {
-		s.sendWebError(conn, err, "failed to get pod log stream")
+		if apierrors.IsNotFound(err) {
+			s.sendWebError(
+				conn,
+				containerLogMessageData.Namespace,
+				containerLogMessageData.PodName,
+				podNotFoundWebError,
+				fmt.Sprintf(
+					"no pod found for log stream: %s/%s",
+					containerLogMessageData.Namespace,
+					containerLogMessageData.PodName,
+				),
+			)
+			return
+		}
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			containerLogMessageData.Namespace,
+			containerLogMessageData.PodName,
+			podLogsWebError,
+			fmt.Sprintf(
+				"failed to get pod log stream: %s/%s",
+				containerLogMessageData.Namespace,
+				containerLogMessageData.PodName,
+			),
+		)
 		return
 	}
 
 	defer func() {
 		if err := stream.Close(); err != nil {
-			s.sendWebError(conn, err, "failed to close stream for pod logs")
+			s.sendWebErrorAndClose(
+				conn,
+				err,
+				containerLogMessageData.Namespace,
+				containerLogMessageData.PodName,
+				podLogsWebError,
+				fmt.Sprintf(
+					"failed to close stream for pod logs: %s/%s",
+					containerLogMessageData.Namespace,
+					containerLogMessageData.PodName,
+				),
+			)
 		}
 	}()
 
@@ -90,7 +127,18 @@ func (s *FlowWatcher) streamLogLines(
 
 			// Finished reading from scanChan
 			if err := scanner.Err(); err != nil {
-				s.sendWebError(conn, err, "failed to scan pod log stream")
+				s.sendWebErrorAndClose(
+					conn,
+					err,
+					containerLogMessageData.Namespace,
+					containerLogMessageData.PodName,
+					podLogsWebError,
+					fmt.Sprintf(
+						"failed to scan pod log stream: %s/%s",
+						containerLogMessageData.Namespace,
+						containerLogMessageData.PodName,
+					),
+				)
 				return
 			}
 
@@ -159,12 +207,32 @@ func (s *FlowWatcher) sendPod(
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		msg := fmt.Sprintf(
-			"failed to get pod %s/%s",
+		if apierrors.IsNotFound(err) {
+			s.sendWebError(
+				conn,
+				containerLogMessageData.Namespace,
+				containerLogMessageData.PodName,
+				podNotFoundWebError,
+				fmt.Sprintf(
+					"pod not found: %s/%s",
+					containerLogMessageData.Namespace,
+					containerLogMessageData.PodName,
+				),
+			)
+			return
+		}
+		s.sendWebErrorAndClose(
+			conn,
+			err,
 			containerLogMessageData.Namespace,
 			containerLogMessageData.PodName,
+			podGetWebError,
+			fmt.Sprintf(
+				"failed to get pod: %s/%s",
+				containerLogMessageData.Namespace,
+				containerLogMessageData.PodName,
+			),
 		)
-		s.sendWebError(conn, err, msg)
 		return
 	}
 	if pod.APIVersion == "" || pod.Kind == "" {
