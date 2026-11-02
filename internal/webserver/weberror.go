@@ -10,11 +10,23 @@ import (
 
 const (
 	webErrorKind = "WebError"
+
+	flowListWebError        = "FlowListError"
+	applicationListWebError = "ApplicationListError"
+	rolloutListWebError     = "RolloutListError"
+	workflowsListWebError   = "WorkflowListError"
+	podListWebError         = "PodListError"
+	podLogsWebError         = "PodLogsError"
+	podGetWebError          = "PodGetError"
+	podNotFoundWebError     = "PodNotFound"
 )
 
 // WebError defines an error response for the webserver in a way that's consistent
 // with Kubernetes resources
 type WebErrorSpec struct {
+	// The error reason
+	Reason string `json:"reason"`
+
 	// The error message
 	Message string `json:"message"`
 }
@@ -39,13 +51,21 @@ type WebErrorList struct {
 	Items []WebError `json:"items"`
 }
 
-func newWebError(message string) WebErrorList {
+func newWebError(
+	namespace string,
+	name string,
+	reason string,
+	message string,
+) WebErrorList {
 	return WebErrorList{
 		Items: []WebError{
 			{
 				Kind:       webErrorKind,
 				APIVersion: v1alpha1.GroupVersion.Identifier(),
+				Namespace:  namespace,
+				Name:       name,
 				Spec: WebErrorSpec{
+					Reason:  reason,
 					Message: message,
 				},
 			},
@@ -53,10 +73,35 @@ func newWebError(message string) WebErrorList {
 	}
 }
 
-func (s *FlowWatcher) sendWebError(conn *WebConn, err error, msg string) {
+func (s *FlowWatcher) sendWebErrorAndClose(
+	conn *WebConn,
+	err error,
+	namespace string,
+	name string,
+	reason string,
+	msg string,
+) {
 	conn.log.Error(err, msg)
 	s.sendConn(conn, newWebError(
+		namespace,
+		name,
+		reason,
 		fmt.Sprintf("%s: %s", msg, err),
 	))
 	s.unregister <- conn
+}
+
+func (s *FlowWatcher) sendWebError(
+	conn *WebConn,
+	namespace string,
+	name string,
+	reason string,
+	msg string,
+) {
+	s.sendConn(conn, newWebError(
+		namespace,
+		name,
+		reason,
+		msg,
+	))
 }

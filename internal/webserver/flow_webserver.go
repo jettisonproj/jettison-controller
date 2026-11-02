@@ -42,15 +42,17 @@ var (
 
 // FlowWebServer serves Flow and related objects
 type FlowWebServer struct {
-	BindAddress          string
-	WorkflowMysqlAddress string
-	ArgoCDKey            string
-	Client               client.Client
-	Cache                cache.Cache
-	Scheme               *runtime.Scheme
-	flowWatcher          *FlowWatcher
-	mysqlWorkflowsMap    map[string]map[string]workflowsv1.Workflow
-	syncClient           *argosync.SyncClient
+	BindAddress            string
+	WorkflowMysqlAddress   string
+	ArgoCDKey              string
+	Client                 client.Client
+	Cache                  cache.Cache
+	Scheme                 *runtime.Scheme
+	ControllerPodNamespace string
+	ControllerPodName      string
+	flowWatcher            *FlowWatcher
+	mysqlWorkflowsMap      map[string]map[string]workflowsv1.Workflow
+	syncClient             *argosync.SyncClient
 }
 
 // SetupWithManager sets up the webserver with the Manager.
@@ -122,18 +124,20 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 
 	// Set up watcher to send updates
 	flowWatcher := &FlowWatcher{
-		client:              s.Client,
-		cache:               s.Cache,
-		scheme:              s.Scheme,
-		notifyAll:           make(chan any),
-		register:            make(chan *WebConn),
-		unregister:          make(chan *WebConn),
-		conns:               make(map[*WebConn]bool),
-		subscribe:           make(chan WebConnResourceSubscription),
-		connSubscriptions:   make(map[ResourceSubscription]map[*WebConn]bool),
-		notifySubscriptions: make(chan any),
-		mysqlWorkflows:      mysqlWorkflows,
-		kubeClient:          kubeClient,
+		client:                 s.Client,
+		cache:                  s.Cache,
+		scheme:                 s.Scheme,
+		notifyAll:              make(chan any),
+		register:               make(chan *WebConn),
+		unregister:             make(chan *WebConn),
+		conns:                  make(map[*WebConn]bool),
+		subscribe:              make(chan WebConnResourceSubscription),
+		connSubscriptions:      make(map[ResourceSubscription]map[*WebConn]bool),
+		notifySubscriptions:    make(chan any),
+		mysqlWorkflows:         mysqlWorkflows,
+		kubeClient:             kubeClient,
+		controllerPodNamespace: s.ControllerPodNamespace,
+		controllerPodName:      s.ControllerPodName,
 	}
 	err = flowWatcher.setupWatcher()
 	if err != nil {

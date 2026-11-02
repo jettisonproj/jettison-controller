@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -48,6 +49,11 @@ import (
 	"github.com/jettisonproj/jettison-controller/internal/webserver"
 	"github.com/jettisonproj/jettison-controller/internal/workflowtemplates"
 	// +kubebuilder:scaffold:imports
+)
+
+const (
+	podNamespaceEnvVar = "POD_NAMESPACE"
+	podNameEnvVar      = "POD_NAME"
 )
 
 var (
@@ -212,13 +218,27 @@ func main() {
 		os.Exit(1)
 	}
 
+	controllerPodNamespace := os.Getenv(podNamespaceEnvVar)
+	if controllerPodNamespace == "" {
+		setupLog.Info(fmt.Sprintf("pod namespace env var not set: %s", podNamespaceEnvVar))
+		os.Exit(1)
+	}
+
+	controllerPodName := os.Getenv(podNameEnvVar)
+	if controllerPodName == "" {
+		setupLog.Info(fmt.Sprintf("pod name env var not set: %s", podNameEnvVar))
+		os.Exit(1)
+	}
+
 	if err = (&webserver.FlowWebServer{
-		BindAddress:          serverAddr,
-		WorkflowMysqlAddress: workflowMysqlAddr,
-		ArgoCDKey:            argocdKey,
-		Client:               mgr.GetClient(),
-		Cache:                mgr.GetCache(),
-		Scheme:               mgr.GetScheme(),
+		BindAddress:            serverAddr,
+		WorkflowMysqlAddress:   workflowMysqlAddr,
+		ArgoCDKey:              argocdKey,
+		Client:                 mgr.GetClient(),
+		Cache:                  mgr.GetCache(),
+		Scheme:                 mgr.GetScheme(),
+		ControllerPodNamespace: controllerPodNamespace,
+		ControllerPodName:      controllerPodName,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webserver", "webserver", "Flow")
 		os.Exit(1)

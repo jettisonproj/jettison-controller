@@ -66,6 +66,12 @@ type FlowWatcher struct {
 	// Separate client is needed for pod logs
 	// See https://github.com/kubernetes-sigs/controller-runtime/issues/452
 	kubeClient *corev1client.CoreV1Client
+
+	// The pod namespace in which this controller is running
+	controllerPodNamespace string
+
+	// The pod name of this instance of the controller
+	controllerPodName string
 }
 
 // Struct containing the data for a websocket to subscribe to resources
@@ -155,7 +161,14 @@ func (s *FlowWatcher) sendInitialFlows(conn *WebConn, wg *sync.WaitGroup) {
 	flows := &v1alpha1.FlowList{}
 	err := s.client.List(conn.ctx, flows)
 	if err != nil {
-		s.sendWebError(conn, err, "failed to get flows")
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			s.controllerPodNamespace,
+			s.controllerPodName,
+			flowListWebError,
+			"failed to get flows",
+		)
 		return
 	}
 
@@ -168,7 +181,14 @@ func (s *FlowWatcher) sendInitialApplications(conn *WebConn, wg *sync.WaitGroup)
 	applications := &cdv1.ApplicationList{}
 	err := s.client.List(conn.ctx, applications)
 	if err != nil {
-		s.sendWebError(conn, err, "failed to get applications")
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			s.controllerPodNamespace,
+			s.controllerPodName,
+			applicationListWebError,
+			"failed to get applications",
+		)
 		return
 	}
 
@@ -181,7 +201,14 @@ func (s *FlowWatcher) sendInitialRollouts(conn *WebConn, wg *sync.WaitGroup) {
 	rollouts := &rolloutsv1.RolloutList{}
 	err := s.client.List(conn.ctx, rollouts)
 	if err != nil {
-		s.sendWebError(conn, err, "failed to get rollouts")
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			s.controllerPodNamespace,
+			s.controllerPodName,
+			rolloutListWebError,
+			"failed to get rollouts",
+		)
 		return
 	}
 
@@ -194,7 +221,14 @@ func (s *FlowWatcher) sendInitialWorkflows(conn *WebConn, wg *sync.WaitGroup) {
 	workflows := &workflowsv1.WorkflowList{}
 	err := s.client.List(conn.ctx, workflows)
 	if err != nil {
-		s.sendWebError(conn, err, "failed to get workflows")
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			s.controllerPodNamespace,
+			s.controllerPodName,
+			workflowsListWebError,
+			"failed to get workflows",
+		)
 		return
 	}
 
@@ -300,7 +334,18 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 	}
 	err := s.client.List(ctx, pods, &listOptions)
 	if err != nil {
-		s.sendWebError(conn, err, "failed to get subscription pods")
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			resourceSubscription.Namespace,
+			resourceSubscription.Name,
+			podListWebError,
+			fmt.Sprintf(
+				"failed to get subscription pods: %s/%s",
+				resourceSubscription.Namespace,
+				resourceSubscription.Name,
+			),
+		)
 		return
 	}
 
