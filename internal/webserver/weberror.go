@@ -15,6 +15,7 @@ const (
 	applicationListWebError = "ApplicationListError"
 	rolloutListWebError     = "RolloutListError"
 	workflowsListWebError   = "WorkflowListError"
+	analysisRunListWebError = "AnalysisRunListError"
 	podListWebError         = "PodListError"
 	podLogsWebError         = "PodLogsError"
 	podGetWebError          = "PodGetError"
