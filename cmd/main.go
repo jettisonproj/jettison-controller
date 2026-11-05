@@ -174,10 +174,10 @@ func main() {
 	err = mgr.GetFieldIndexer().IndexField(
 		context.Background(),
 		&corev1.Pod{},
-		"metadata.labels.app",
+		webserver.POD_APP_INDEX_KEY,
 		func(obj client.Object) []string {
 			item := obj.(*corev1.Pod)
-			appLabel := item.ObjectMeta.Labels["app"]
+			appLabel := item.ObjectMeta.Labels[webserver.POD_APP_LABEL_KEY]
 			if appLabel == "" {
 				return nil
 			}
@@ -185,7 +185,7 @@ func main() {
 		},
 	)
 	if err != nil {
-		setupLog.Error(err, "unable to add indexer to manager")
+		setupLog.Error(err, "unable to add pod indexer to manager")
 		os.Exit(1)
 	}
 

@@ -120,7 +120,6 @@ func (s *FlowWatcher) streamLogLines(
 		case logLine, isScanChanOpen := <-scanChan:
 			if isScanChanOpen {
 				logLines = append(logLines, logLine)
-				conn.log.Info("got log message", "logLine", logLine)
 				timer.Reset(containerLogDebounce)
 				continue
 			}
