@@ -318,6 +318,15 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 
 			s.handleSyncApplicationMessage(conn, syncApplicationMessageData)
 			continue
+		case RETRY_ROLLOUT_MESSAGE_TYPE:
+			var retryRolloutMessageData RetryRolloutMessageData
+			if err := json.Unmarshal(webMessage.MessageData, &retryRolloutMessageData); err != nil {
+				conn.log.Error(err, "failed to parse retry rollout message", "message", string(message))
+				panic(err)
+			}
+
+			s.handleRetryRolloutMessage(conn, retryRolloutMessageData)
+			continue
 		default:
 			panic(fmt.Errorf("unexpected web message type %s", webMessage.MessageType))
 		}
