@@ -330,7 +330,7 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 	pods := &corev1.PodList{}
 	listOptions := ctrlclient.ListOptions{
 		Namespace:     resourceSubscription.Namespace,
-		FieldSelector: fields.OneTermEqualSelector(POD_APP_INDEX_KEY, resourceSubscription.Name),
+		FieldSelector: fields.OneTermEqualSelector(JETTISON_APP_INDEX_KEY, resourceSubscription.Name),
 	}
 	err := s.client.List(ctx, pods, &listOptions)
 	if err != nil {
@@ -386,7 +386,7 @@ func (s *FlowWatcher) notifyResourceSubscriptions(obj any) {
 		resourceSubscription := ResourceSubscription{
 			SubscriptionType: POD_SUBSCRIPTION_TYPE,
 			Namespace:        resource.ObjectMeta.Namespace,
-			Name:             resource.Labels[POD_APP_LABEL_KEY],
+			Name:             resource.Labels[JETTISON_APP_LABEL_KEY],
 		}
 
 		webConnSubscribers := s.connSubscriptions[resourceSubscription]
@@ -668,7 +668,7 @@ func (s *FlowWatcher) onSubscriptionResourceAdd(obj any, isInInitialList bool) {
 			"name", resource.Name,
 			"isInInitialList", isInInitialList,
 		)
-		if resource.Labels[POD_APP_LABEL_KEY] == "" {
+		if resource.Labels[JETTISON_APP_LABEL_KEY] == "" {
 			setupLog.Info(
 				"skip subscription resource add event for Pod due to missing label",
 			)
@@ -692,7 +692,7 @@ func (s *FlowWatcher) onSubscriptionResourceUpdate(oldObj, newObj any) {
 			"namespace", newResource.Namespace,
 			"name", newResource.Name,
 		)
-		if newResource.Labels[POD_APP_LABEL_KEY] == "" {
+		if newResource.Labels[JETTISON_APP_LABEL_KEY] == "" {
 			setupLog.Info(
 				"skip subscription resource update event for Pod due to missing label",
 			)
@@ -717,7 +717,7 @@ func (s *FlowWatcher) onSubscriptionResourceDelete(obj any) {
 			"name", resource.Name,
 		)
 
-		if resource.Labels[POD_APP_LABEL_KEY] == "" {
+		if resource.Labels[JETTISON_APP_LABEL_KEY] == "" {
 			setupLog.Info(
 				"skip subscription resource delete event for Pod due to missing label",
 			)
