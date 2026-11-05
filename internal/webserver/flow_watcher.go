@@ -341,7 +341,31 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 			resourceSubscription.Name,
 			podListWebError,
 			fmt.Sprintf(
-				"failed to get subscription pods: %s/%s",
+				"failed to get subscription app pods: %s/%s",
+				resourceSubscription.Namespace,
+				resourceSubscription.Name,
+			),
+		)
+		return
+	}
+
+	s.sendConn(conn, pods)
+
+	testPods := &corev1.PodList{}
+	testListOptions := ctrlclient.ListOptions{
+		Namespace:     resourceSubscription.Namespace,
+		FieldSelector: fields.OneTermEqualSelector(POD_APP_UNDER_TEST_INDEX_KEY, resourceSubscription.Name),
+	}
+	err = s.client.List(ctx, testPods, &testListOptions)
+	if err != nil {
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			resourceSubscription.Namespace,
+			resourceSubscription.Name,
+			podListWebError,
+			fmt.Sprintf(
+				"failed to get subscription test pods: %s/%s",
 				resourceSubscription.Namespace,
 				resourceSubscription.Name,
 			),
@@ -398,6 +422,24 @@ func (s *FlowWatcher) notifyResourceSubscriptions(obj any) {
 			}
 
 			s.sendConn(webConn, listResource)
+		}
+
+		if resource.Labels[POD_APP_UNDER_TEST_LABEL_KEY] != "" {
+			testResourceSubscription := ResourceSubscription{
+				SubscriptionType: POD_SUBSCRIPTION_TYPE,
+				Namespace:        resource.ObjectMeta.Namespace,
+				Name:             resource.Labels[POD_APP_UNDER_TEST_LABEL_KEY],
+			}
+
+			webConnTestSubscribers := s.connSubscriptions[testResourceSubscription]
+			for webConn := range webConnTestSubscribers {
+				if !s.conns[webConn] {
+					delete(webConnTestSubscribers, webConn)
+					continue
+				}
+
+				s.sendConn(webConn, listResource)
+			}
 		}
 	default:
 		// unreachable: this is validated in the event handler
