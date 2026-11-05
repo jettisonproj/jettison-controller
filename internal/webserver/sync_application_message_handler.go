@@ -8,6 +8,19 @@ func (s *FlowWatcher) handleSyncApplicationMessage(
 	conn *WebConn,
 	syncApplicationMessageData SyncApplicationMessageData,
 ) {
+	conn.log.Info(
+		"got sync application message",
+		"namespace", syncApplicationMessageData.Namespace,
+		"name", syncApplicationMessageData.Name,
+	)
+
+	go s.syncApplication(conn, syncApplicationMessageData)
+}
+
+func (s *FlowWatcher) syncApplication(
+	conn *WebConn,
+	syncApplicationMessageData SyncApplicationMessageData,
+) {
 	namespace := syncApplicationMessageData.Namespace
 	name := syncApplicationMessageData.Name
 
