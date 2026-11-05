@@ -76,7 +76,7 @@ type FlowReconciler struct {
 
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
-// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts;workflows,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=analysisruns;rollouts;workflows,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
