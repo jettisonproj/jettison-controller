@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	POD_SUBSCRIPTION_TYPE = "pod"
-	POD_APP_INDEX_KEY     = "metadata.labels.app"
-	POD_APP_LABEL_KEY     = "app"
+	POD_SUBSCRIPTION_TYPE  = "pod"
+	JETTISON_APP_INDEX_KEY = "metadata.labels.jettison-app"
+	JETTISON_APP_LABEL_KEY = "jettison-app"
 )
 
 func (s *FlowWatcher) handleResourceSubscriptionMessage(

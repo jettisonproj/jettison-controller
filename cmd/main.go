@@ -174,10 +174,10 @@ func main() {
 	err = mgr.GetFieldIndexer().IndexField(
 		context.Background(),
 		&corev1.Pod{},
-		webserver.POD_APP_INDEX_KEY,
+		webserver.JETTISON_APP_INDEX_KEY,
 		func(obj client.Object) []string {
 			item := obj.(*corev1.Pod)
-			appLabel := item.ObjectMeta.Labels[webserver.POD_APP_LABEL_KEY]
+			appLabel := item.ObjectMeta.Labels[webserver.JETTISON_APP_LABEL_KEY]
 			if appLabel == "" {
 				return nil
 			}
