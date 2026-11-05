@@ -270,16 +270,6 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
-  - analysisruns
-  - rollouts
-  - workflows
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - argoproj.io
-  resources:
   - applications
   - appprojects
   - clusterworkflowtemplates
@@ -292,6 +282,15 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - rollouts
+  - workflows
+  verbs:
+  - get
+  - list
   - watch
 - apiGroups:
   - workflows.jettisonproj.io
