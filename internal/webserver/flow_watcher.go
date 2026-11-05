@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
+	"github.com/jettisonproj/jettison-controller/internal/webserver/argosync"
 )
 
 var (
@@ -72,6 +73,9 @@ type FlowWatcher struct {
 
 	// The pod name of this instance of the controller
 	controllerPodName string
+
+	// Client for performing ArgoCD application syncs
+	syncClient *argosync.SyncClient
 }
 
 // Struct containing the data for a websocket to subscribe to resources
@@ -304,6 +308,15 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 			}
 
 			s.handleResourceSubscriptionMessage(conn, resourceSubscription)
+			continue
+		case SYNC_APPLICATION_MESSAGE_TYPE:
+			var syncApplicationMessageData SyncApplicationMessageData
+			if err := json.Unmarshal(webMessage.MessageData, &syncApplicationMessageData); err != nil {
+				conn.log.Error(err, "failed to parse sync application message", "message", string(message))
+				panic(err)
+			}
+
+			s.handleSyncApplicationMessage(conn, syncApplicationMessageData)
 			continue
 		default:
 			panic(fmt.Errorf("unexpected web message type %s", webMessage.MessageType))

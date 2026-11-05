@@ -19,6 +19,7 @@ const (
 	podLogsWebError         = "PodLogsError"
 	podGetWebError          = "PodGetError"
 	podNotFoundWebError     = "PodNotFound"
+	applicationSyncWebError = "ApplicationSyncError"
 )
 
 // WebError defines an error response for the webserver in a way that's consistent
