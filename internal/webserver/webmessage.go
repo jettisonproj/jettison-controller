@@ -8,6 +8,7 @@ const (
 	CONTAINER_LOG_MESSAGE_TYPE         = "containerLog"
 	RESOURCE_SUBSCRIPTION_MESSAGE_TYPE = "resourceSubscription"
 	SYNC_APPLICATION_MESSAGE_TYPE      = "syncApplication"
+	RETRY_ROLLOUT_MESSAGE_TYPE         = "retryRollout"
 )
 
 type WebMessage struct {
@@ -28,6 +29,11 @@ type ResourceSubscription struct {
 }
 
 type SyncApplicationMessageData struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+}
+
+type RetryRolloutMessageData struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 }
