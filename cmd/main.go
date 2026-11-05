@@ -185,7 +185,25 @@ func main() {
 		},
 	)
 	if err != nil {
-		setupLog.Error(err, "unable to add pod indexer to manager")
+		setupLog.Error(err, "unable to add pod app indexer to manager")
+		os.Exit(1)
+	}
+
+	err = mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&corev1.Pod{},
+		webserver.POD_APP_UNDER_TEST_INDEX_KEY,
+		func(obj client.Object) []string {
+			item := obj.(*corev1.Pod)
+			appUnderTestLabel := item.ObjectMeta.Labels[webserver.POD_APP_UNDER_TEST_LABEL_KEY]
+			if appUnderTestLabel == "" {
+				return nil
+			}
+			return []string{appUnderTestLabel}
+		},
+	)
+	if err != nil {
+		setupLog.Error(err, "unable to add pod app under test indexer to manager")
 		os.Exit(1)
 	}
 
