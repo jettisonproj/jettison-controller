@@ -255,7 +255,7 @@ spec:
       - name: argocd-app-namespace
       - name: argocd-app-name
     container:
-      image: "ghcr.io/jettisonproj/deploy-steps/argocd:5e77c19f730f333c687228188ed52ac27e45b119"
+      image: "ghcr.io/jettisonproj/deploy-steps/argocd:b1bd723eae2a563d92f6593bf571d8b7f6ace363"
       args:
       - "./deploy-step-argocd.sh"
       - "{{inputs.parameters.deploy-repo}}"
