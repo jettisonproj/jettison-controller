@@ -5,9 +5,11 @@ import (
 )
 
 const (
-	POD_SUBSCRIPTION_TYPE = "pod"
-	POD_APP_INDEX_KEY     = "metadata.labels.app"
-	POD_APP_LABEL_KEY     = "app"
+	POD_SUBSCRIPTION_TYPE        = "pod"
+	POD_APP_INDEX_KEY            = "metadata.labels.app"
+	POD_APP_LABEL_KEY            = "app"
+	POD_APP_UNDER_TEST_INDEX_KEY = "metadata.labels.app-under-test"
+	POD_APP_UNDER_TEST_LABEL_KEY = "app-under-test"
 )
 
 func (s *FlowWatcher) handleResourceSubscriptionMessage(

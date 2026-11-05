@@ -341,7 +341,7 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 			resourceSubscription.Name,
 			podListWebError,
 			fmt.Sprintf(
-				"failed to get subscription pods: %s/%s",
+				"failed to get subscription app pods: %s/%s",
 				resourceSubscription.Namespace,
 				resourceSubscription.Name,
 			),
@@ -350,6 +350,30 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 	}
 
 	s.sendConn(conn, pods)
+
+	testPods := &corev1.PodList{}
+	testListOptions := ctrlclient.ListOptions{
+		Namespace:     resourceSubscription.Namespace,
+		FieldSelector: fields.OneTermEqualSelector(POD_APP_UNDER_TEST_INDEX_KEY, resourceSubscription.Name),
+	}
+	err = s.client.List(ctx, testPods, &testListOptions)
+	if err != nil {
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			resourceSubscription.Namespace,
+			resourceSubscription.Name,
+			podListWebError,
+			fmt.Sprintf(
+				"failed to get subscription test pods: %s/%s",
+				resourceSubscription.Namespace,
+				resourceSubscription.Name,
+			),
+		)
+		return
+	}
+
+	s.sendConn(conn, testPods)
 
 	// Register the connection to send subscription updates
 	s.connSubscriptions[resourceSubscription][conn] = true
@@ -383,10 +407,17 @@ func (s *FlowWatcher) unregisterConn(conn *WebConn) {
 func (s *FlowWatcher) notifyResourceSubscriptions(obj any) {
 	switch resource := obj.(type) {
 	case *corev1.Pod:
+		var resourceName string
+		if resource.Labels[POD_APP_UNDER_TEST_LABEL_KEY] != "" {
+			resourceName = resource.Labels[POD_APP_UNDER_TEST_LABEL_KEY]
+		} else {
+			resourceName = resource.Labels[POD_APP_LABEL_KEY]
+		}
+
 		resourceSubscription := ResourceSubscription{
 			SubscriptionType: POD_SUBSCRIPTION_TYPE,
 			Namespace:        resource.ObjectMeta.Namespace,
-			Name:             resource.Labels[POD_APP_LABEL_KEY],
+			Name:             resourceName,
 		}
 
 		webConnSubscribers := s.connSubscriptions[resourceSubscription]
