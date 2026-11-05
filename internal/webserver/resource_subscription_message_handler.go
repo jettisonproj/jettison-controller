@@ -5,10 +5,9 @@ import (
 )
 
 const (
-	POD_SUBSCRIPTION_TYPE          = "pod"
-	ANALYSIS_RUN_SUBSCRIPTION_TYPE = "analysisRun"
-	APP_INDEX_KEY                  = "metadata.labels.app"
-	APP_LABEL_KEY                  = "app"
+	POD_SUBSCRIPTION_TYPE = "pod"
+	POD_APP_INDEX_KEY     = "metadata.labels.app"
+	POD_APP_LABEL_KEY     = "app"
 )
 
 func (s *FlowWatcher) handleResourceSubscriptionMessage(
@@ -22,7 +21,7 @@ func (s *FlowWatcher) handleResourceSubscriptionMessage(
 		"name", resourceSubscription.Name,
 	)
 
-	if resourceSubscription.SubscriptionType != POD_SUBSCRIPTION_TYPE && resourceSubscription.SubscriptionType != ANALYSIS_RUN_SUBSCRIPTION_TYPE {
+	if resourceSubscription.SubscriptionType != POD_SUBSCRIPTION_TYPE {
 		panic(fmt.Errorf("unexpected subscription type %s", resourceSubscription.SubscriptionType))
 	}
 

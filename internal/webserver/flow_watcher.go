@@ -326,58 +326,30 @@ func (s *FlowWatcher) registerResourceSubscription(webConnResourceSubscription W
 		return
 	}
 
-	// Send the initial resources
-	switch resourceSubscription.SubscriptionType {
-	case POD_SUBSCRIPTION_TYPE:
-		pods := &corev1.PodList{}
-		listOptions := ctrlclient.ListOptions{
-			Namespace:     resourceSubscription.Namespace,
-			FieldSelector: fields.OneTermEqualSelector(APP_INDEX_KEY, resourceSubscription.Name),
-		}
-		err := s.client.List(ctx, pods, &listOptions)
-		if err != nil {
-			s.sendWebErrorAndClose(
-				conn,
-				err,
-				resourceSubscription.Namespace,
-				resourceSubscription.Name,
-				podListWebError,
-				fmt.Sprintf(
-					"failed to get subscription pods: %s/%s",
-					resourceSubscription.Namespace,
-					resourceSubscription.Name,
-				),
-			)
-			return
-		}
-
-		s.sendConn(conn, pods)
-	case ANALYSIS_RUN_SUBSCRIPTION_TYPE:
-		analysisRuns := &rolloutsv1.AnalysisRunList{}
-		listOptions := ctrlclient.ListOptions{
-			Namespace:     resourceSubscription.Namespace,
-			FieldSelector: fields.OneTermEqualSelector(APP_INDEX_KEY, resourceSubscription.Name),
-		}
-		err := s.client.List(ctx, analysisRuns, &listOptions)
-		if err != nil {
-			s.sendWebErrorAndClose(
-				conn,
-				err,
-				resourceSubscription.Namespace,
-				resourceSubscription.Name,
-				analysisRunListWebError,
-				fmt.Sprintf(
-					"failed to get subscription analysis runs: %s/%s",
-					resourceSubscription.Namespace,
-					resourceSubscription.Name,
-				),
-			)
-			return
-		}
-		s.sendConn(conn, analysisRuns)
-	default:
-		panic(fmt.Errorf("unexpected subscription type %s", resourceSubscription.SubscriptionType))
+	// Send the initial resources. Currently, only pod subscriptions are supported
+	pods := &corev1.PodList{}
+	listOptions := ctrlclient.ListOptions{
+		Namespace:     resourceSubscription.Namespace,
+		FieldSelector: fields.OneTermEqualSelector(POD_APP_INDEX_KEY, resourceSubscription.Name),
 	}
+	err := s.client.List(ctx, pods, &listOptions)
+	if err != nil {
+		s.sendWebErrorAndClose(
+			conn,
+			err,
+			resourceSubscription.Namespace,
+			resourceSubscription.Name,
+			podListWebError,
+			fmt.Sprintf(
+				"failed to get subscription pods: %s/%s",
+				resourceSubscription.Namespace,
+				resourceSubscription.Name,
+			),
+		)
+		return
+	}
+
+	s.sendConn(conn, pods)
 
 	// Register the connection to send subscription updates
 	s.connSubscriptions[resourceSubscription][conn] = true
@@ -414,28 +386,11 @@ func (s *FlowWatcher) notifyResourceSubscriptions(obj any) {
 		resourceSubscription := ResourceSubscription{
 			SubscriptionType: POD_SUBSCRIPTION_TYPE,
 			Namespace:        resource.ObjectMeta.Namespace,
-			Name:             resource.Labels[APP_LABEL_KEY],
+			Name:             resource.Labels[POD_APP_LABEL_KEY],
 		}
 
 		webConnSubscribers := s.connSubscriptions[resourceSubscription]
 		listResource := corev1.PodList{Items: []corev1.Pod{*resource}}
-		for webConn := range webConnSubscribers {
-			if !s.conns[webConn] {
-				delete(webConnSubscribers, webConn)
-				continue
-			}
-
-			s.sendConn(webConn, listResource)
-		}
-	case *rolloutsv1.AnalysisRun:
-		resourceSubscription := ResourceSubscription{
-			SubscriptionType: ANALYSIS_RUN_SUBSCRIPTION_TYPE,
-			Namespace:        resource.ObjectMeta.Namespace,
-			Name:             resource.Labels[APP_LABEL_KEY],
-		}
-
-		webConnSubscribers := s.connSubscriptions[resourceSubscription]
-		listResource := rolloutsv1.AnalysisRunList{Items: []rolloutsv1.AnalysisRun{*resource}}
 		for webConn := range webConnSubscribers {
 			if !s.conns[webConn] {
 				delete(webConnSubscribers, webConn)
@@ -512,16 +467,6 @@ func (s *FlowWatcher) setupWatcher() error {
 	_, err = podInformer.AddEventHandler(subscriptionResourceEventHandler)
 	if err != nil {
 		return fmt.Errorf("failed to init pod informer for webserver: %s", err)
-	}
-
-	// send analysis run events (only for subscriptions)
-	analysisRunInformer, err := s.cache.GetInformer(ctx, &rolloutsv1.AnalysisRun{})
-	if err != nil {
-		return fmt.Errorf("failed to get analysis run informer for webserver: %s", err)
-	}
-	_, err = analysisRunInformer.AddEventHandler(subscriptionResourceEventHandler)
-	if err != nil {
-		return fmt.Errorf("failed to init analysis run informer for webserver: %s", err)
 	}
 
 	return nil
@@ -723,7 +668,7 @@ func (s *FlowWatcher) onSubscriptionResourceAdd(obj any, isInInitialList bool) {
 			"name", resource.Name,
 			"isInInitialList", isInInitialList,
 		)
-		if resource.Labels[APP_LABEL_KEY] == "" {
+		if resource.Labels[POD_APP_LABEL_KEY] == "" {
 			setupLog.Info(
 				"skip subscription resource add event for Pod due to missing label",
 			)
@@ -731,23 +676,6 @@ func (s *FlowWatcher) onSubscriptionResourceAdd(obj any, isInInitialList bool) {
 		}
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillPodSchema(resource)
-		}
-		s.notifySubscriptions <- resource
-	case *rolloutsv1.AnalysisRun:
-		setupLog.Info(
-			"got subscription resource add event for AnalysisRun",
-			"namespace", resource.Namespace,
-			"name", resource.Name,
-			"isInInitialList", isInInitialList,
-		)
-		if resource.Labels[APP_LABEL_KEY] == "" {
-			setupLog.Info(
-				"skip subscription resource add event for AnalysisRun due to missing label",
-			)
-			return
-		}
-		if resource.APIVersion == "" || resource.Kind == "" {
-			s.backfillAnalysisRunSchema(resource)
 		}
 		s.notifySubscriptions <- resource
 	default:
@@ -764,7 +692,7 @@ func (s *FlowWatcher) onSubscriptionResourceUpdate(oldObj, newObj any) {
 			"namespace", newResource.Namespace,
 			"name", newResource.Name,
 		)
-		if newResource.Labels[APP_LABEL_KEY] == "" {
+		if newResource.Labels[POD_APP_LABEL_KEY] == "" {
 			setupLog.Info(
 				"skip subscription resource update event for Pod due to missing label",
 			)
@@ -772,22 +700,6 @@ func (s *FlowWatcher) onSubscriptionResourceUpdate(oldObj, newObj any) {
 		}
 		if newResource.APIVersion == "" || newResource.Kind == "" {
 			s.backfillPodSchema(newResource)
-		}
-		s.notifySubscriptions <- newResource
-	case *rolloutsv1.AnalysisRun:
-		setupLog.Info(
-			"got subscription resource update event for AnalysisRun",
-			"namespace", newResource.Namespace,
-			"name", newResource.Name,
-		)
-		if newResource.Labels[APP_LABEL_KEY] == "" {
-			setupLog.Info(
-				"skip subscription resource update event for AnalysisRun due to missing label",
-			)
-			return
-		}
-		if newResource.APIVersion == "" || newResource.Kind == "" {
-			s.backfillAnalysisRunSchema(newResource)
 		}
 		s.notifySubscriptions <- newResource
 	default:
@@ -805,7 +717,7 @@ func (s *FlowWatcher) onSubscriptionResourceDelete(obj any) {
 			"name", resource.Name,
 		)
 
-		if resource.Labels[APP_LABEL_KEY] == "" {
+		if resource.Labels[POD_APP_LABEL_KEY] == "" {
 			setupLog.Info(
 				"skip subscription resource delete event for Pod due to missing label",
 			)
@@ -823,33 +735,6 @@ func (s *FlowWatcher) onSubscriptionResourceDelete(obj any) {
 
 		if resource.APIVersion == "" || resource.Kind == "" {
 			s.backfillPodSchema(resource)
-		}
-		s.notifySubscriptions <- resource
-	case *rolloutsv1.AnalysisRun:
-		setupLog.Info(
-			"got subscription resource delete event for AnalysisRun",
-			"namespace", resource.Namespace,
-			"name", resource.Name,
-		)
-
-		if resource.Labels[APP_LABEL_KEY] == "" {
-			setupLog.Info(
-				"skip subscription resource delete event for AnalysisRun due to missing label",
-			)
-			return
-		}
-
-		// Add a distinguishing delete key
-		annotationKey := fmt.Sprintf("%s/watcher-event-type", v1alpha1.GroupVersion.Identifier())
-		annotationVal := "delete"
-		if resource.Annotations == nil {
-			resource.Annotations = map[string]string{annotationKey: annotationVal}
-		} else {
-			resource.Annotations[annotationKey] = annotationVal
-		}
-
-		if resource.APIVersion == "" || resource.Kind == "" {
-			s.backfillAnalysisRunSchema(resource)
 		}
 		s.notifySubscriptions <- resource
 	default:
@@ -926,18 +811,4 @@ func (s *FlowWatcher) backfillPodSchema(pod *corev1.Pod) {
 	apiVersion, kind := gvk.ToAPIVersionAndKind()
 	pod.APIVersion = apiVersion
 	pod.Kind = kind
-}
-
-// Backfill TypeMeta data that has been dropped
-// See: https://github.com/kubernetes/client-go/issues/541
-func (s *FlowWatcher) backfillAnalysisRunSchema(analysisRun *rolloutsv1.AnalysisRun) {
-	setupLog.Info("backfilling analysis run metadata")
-	gvk, err := apiutil.GVKForObject(analysisRun, s.scheme)
-	if err != nil {
-		setupLog.Error(err, "unable to get analysis run schema info")
-		panic(err)
-	}
-	apiVersion, kind := gvk.ToAPIVersionAndKind()
-	analysisRun.APIVersion = apiVersion
-	analysisRun.Kind = kind
 }
