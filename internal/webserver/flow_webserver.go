@@ -138,6 +138,7 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 		kubeClient:             kubeClient,
 		controllerPodNamespace: s.ControllerPodNamespace,
 		controllerPodName:      s.ControllerPodName,
+		syncClient:             s.syncClient,
 	}
 	err = flowWatcher.setupWatcher()
 	if err != nil {
