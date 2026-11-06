@@ -7,6 +7,7 @@ import (
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
+	"github.com/jettisonproj/jettison-controller/internal/controller/rbacbuilder"
 )
 
 // Build a Sensor for the specified Flow triggers and steps
@@ -32,8 +33,7 @@ func BuildSensor(
 			Triggers:     sensorTriggers,
 			Template: &eventsv1.Template{
 				// ServiceAccountName is the name of the ServiceAccount to use to run sensor pod
-				// todo should extract out
-				ServiceAccountName: "operate-workflow-sa",
+				ServiceAccountName: rbacbuilder.SensorServiceAccountName,
 			},
 		},
 	}, nil

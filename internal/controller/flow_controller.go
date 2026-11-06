@@ -26,6 +26,7 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v74/github"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +42,7 @@ import (
 	"github.com/jettisonproj/jettison-controller/internal/controller/eventsourcebuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/ghsettings"
 	"github.com/jettisonproj/jettison-controller/internal/controller/pvcbuilder"
+	"github.com/jettisonproj/jettison-controller/internal/controller/rbacbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/sensorbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/gitutil"
 )
@@ -75,14 +77,19 @@ type FlowReconciler struct {
 // +kubebuilder:rbac:groups=workflows.jettisonproj.io,resources=flows/finalizers,verbs=update
 
 // Jettison manages argo resources to manage deployments
-// +kubebuilder:rbac:groups=argoproj.io,resources=applications;appprojects;clusterworkflowtemplates;eventbus;eventsources;sensors,verbs=get;list;watch;create;update;patch;delete
+// Workflows are needed here to grant the Sensor ServiceAccount below access
+// +kubebuilder:rbac:groups=argoproj.io,resources=applications;appprojects;clusterworkflowtemplates;eventbus;eventsources;sensors;workflows,verbs=get;list;watch;create;update;patch;delete
 
 // Jettison manages PVCs for BuildKit image builds
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch
 
+// Jettison manages ServiceAccounts for Sensors, which create the workflows
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete
+
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
-// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts;workflows,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch
 
 // Jettison supports retrying an argo rollout
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts/status,verbs=patch
@@ -215,11 +222,115 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			reconcilerlog.Info("no BuildKit cache PVC drift detected", "namespace", flow.Namespace)
 		}
 
+		// Reconcile the Sensor ServiceAccount in the Flow namespace
+		sensorServiceAccount := rbacbuilder.BuildSensorServiceAccount(flow.Namespace)
+		existingSensorServiceAccount := &corev1.ServiceAccount{}
+		existingNamespaceName = client.ObjectKey{
+			Namespace: sensorServiceAccount.ObjectMeta.Namespace,
+			Name:      sensorServiceAccount.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingSensorServiceAccount)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Sensor ServiceAccount", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingSensorServiceAccountNotFound := err != nil
+
+		// Note: The ownerRef for the Sensor RBAC is not set, since
+		// it is shared by all Flows in the namespace
+
+		if existingSensorServiceAccountNotFound {
+			if err := r.Create(ctx, sensorServiceAccount); err != nil {
+				reconcilerlog.Error(err, "failed to create Sensor ServiceAccount", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			// The ServiceAccount has no fields set by the operator besides the name
+			reconcilerlog.Info("no Sensor ServiceAccount drift detected", "namespace", flow.Namespace)
+		}
+
+		// Reconcile the Sensor Role in the Flow namespace
+		sensorRole := rbacbuilder.BuildSensorRole(flow.Namespace)
+		existingSensorRole := &rbacv1.Role{}
+		existingNamespaceName = client.ObjectKey{
+			Namespace: sensorRole.ObjectMeta.Namespace,
+			Name:      sensorRole.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingSensorRole)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Sensor Role", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingSensorRoleNotFound := err != nil
+
+		if existingSensorRoleNotFound {
+			if err := r.Create(ctx, sensorRole); err != nil {
+				reconcilerlog.Error(err, "failed to create Sensor Role", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(sensorRole.Rules, existingSensorRole.Rules) {
+			existingSensorRole.Rules = sensorRole.Rules
+			if err := r.Update(ctx, existingSensorRole); err != nil {
+				reconcilerlog.Error(err, "failed to update Sensor Role", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no Sensor Role drift detected", "namespace", flow.Namespace)
+		}
+
+		// Reconcile the Sensor RoleBinding in the Flow namespace
+		sensorRoleBinding := rbacbuilder.BuildSensorRoleBinding(flow.Namespace)
+		existingSensorRoleBinding := &rbacv1.RoleBinding{}
+		existingNamespaceName = client.ObjectKey{
+			Namespace: sensorRoleBinding.ObjectMeta.Namespace,
+			Name:      sensorRoleBinding.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingSensorRoleBinding)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Sensor RoleBinding", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingSensorRoleBindingNotFound := err != nil
+
+		if existingSensorRoleBindingNotFound {
+			if err := r.Create(ctx, sensorRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to create Sensor RoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if existingSensorRoleBinding.RoleRef != sensorRoleBinding.RoleRef {
+			// The RoleRef is immutable, so the RoleBinding must be recreated.
+			if err := r.Delete(ctx, existingSensorRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to delete Sensor RoleBinding with outdated RoleRef", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			if err := r.Create(ctx, sensorRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to recreate Sensor RoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(sensorRoleBinding.Subjects, existingSensorRoleBinding.Subjects) {
+			existingSensorRoleBinding.Subjects = sensorRoleBinding.Subjects
+			if err := r.Update(ctx, existingSensorRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to update Sensor RoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no Sensor RoleBinding drift detected", "namespace", flow.Namespace)
+		}
+
 		// todo: ideally the remaining external deps could be moved to here, but currently
 		// non-standard fields are used
-		// Reconcile the Sensor RBAC https://raw.githubusercontent.com/argoproj/argo-events/master/examples/rbac/sensor-rbac.yaml
-		//   dynamic: namespace
-		//   description: Sensor needs RBAC to create workflows
 		// Reconcile the Workflow RBAC https://raw.githubusercontent.com/argoproj/argo-events/master/examples/rbac/workflow-rbac.yaml
 		//   dynamic: namespace
 		//   description: the workflow manager pods themselves need to update the workflowtaskresults
