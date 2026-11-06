@@ -25,6 +25,7 @@ import (
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v74/github"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +40,7 @@ import (
 	"github.com/jettisonproj/jettison-controller/internal/controller/eventbusbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/eventsourcebuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/ghsettings"
+	"github.com/jettisonproj/jettison-controller/internal/controller/pvcbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/sensorbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/gitutil"
 )
@@ -74,6 +76,9 @@ type FlowReconciler struct {
 
 // Jettison manages argo resources to manage deployments
 // +kubebuilder:rbac:groups=argoproj.io,resources=applications;appprojects;clusterworkflowtemplates;eventbus;eventsources;sensors,verbs=get;list;watch;create;update;patch;delete
+
+// Jettison manages PVCs for BuildKit image builds
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch
 
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
@@ -167,6 +172,47 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			detectedDrift = true
 		} else {
 			reconcilerlog.Info("no EventBus drift detected", "namespace", flow.Namespace)
+		}
+
+		// Reconcile the BuildKit cache PVC in the Flow namespace
+		buildKitCachePVC := pvcbuilder.BuildBuildKitCachePVC(flow.Namespace)
+		existingBuildKitCachePVC := &corev1.PersistentVolumeClaim{}
+		existingNamespaceName = client.ObjectKey{
+			Namespace: buildKitCachePVC.ObjectMeta.Namespace,
+			Name:      buildKitCachePVC.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingBuildKitCachePVC)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing BuildKit cache PVC", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingBuildKitCachePVCNotFound := err != nil
+
+		// Note: The ownerRef for the PVC is not set, since
+		// it is shared by all Flows in the namespace
+
+		if existingBuildKitCachePVCNotFound {
+			if err := r.Create(ctx, buildKitCachePVC); err != nil {
+				reconcilerlog.Error(err, "failed to create BuildKit cache PVC", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(
+			buildKitCachePVC.Spec.Resources.Requests,
+			existingBuildKitCachePVC.Spec.Resources.Requests,
+		) {
+			// Most of the PVC spec is immutable after creation. Only the
+			// resource requests can be updated (e.g. to expand storage)
+			existingBuildKitCachePVC.Spec.Resources.Requests = buildKitCachePVC.Spec.Resources.Requests
+			if err := r.Update(ctx, existingBuildKitCachePVC); err != nil {
+				reconcilerlog.Error(err, "failed to update BuildKit cache PVC", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no BuildKit cache PVC drift detected", "namespace", flow.Namespace)
 		}
 
 		// todo: ideally the remaining external deps could be moved to here, but currently
