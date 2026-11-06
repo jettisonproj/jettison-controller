@@ -75,14 +75,19 @@ type FlowReconciler struct {
 // +kubebuilder:rbac:groups=workflows.jettisonproj.io,resources=flows/finalizers,verbs=update
 
 // Jettison manages argo resources to manage deployments
-// +kubebuilder:rbac:groups=argoproj.io,resources=applications;appprojects;clusterworkflowtemplates;eventbus;eventsources;sensors,verbs=get;list;watch;create;update;patch;delete
+// Workflows are needed here to grant the Sensoor ServiceAccount below access
+// +kubebuilder:rbac:groups=argoproj.io,resources=applications;appprojects;clusterworkflowtemplates;eventbus;eventsources;sensors;workflows,verbs=get;list;watch;create;update;patch;delete
 
 // Jettison manages PVCs for BuildKit image builds
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch
 
+// Jettison manages ServiceAccounts for Sensors, which create the workflows
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete
+
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
-// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts;workflows,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch
 
 // Jettison supports retrying an argo rollout
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts/status,verbs=patch

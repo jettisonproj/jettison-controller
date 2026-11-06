@@ -271,6 +271,7 @@ rules:
   - ""
   resources:
   - persistentvolumeclaims
+  - serviceaccounts
   verbs:
   - create
   - get
@@ -287,6 +288,7 @@ rules:
   - eventbus
   - eventsources
   - sensors
+  - workflows
   verbs:
   - create
   - delete
@@ -299,7 +301,6 @@ rules:
   - argoproj.io
   resources:
   - rollouts
-  - workflows
   verbs:
   - get
   - list
@@ -310,6 +311,19 @@ rules:
   - rollouts/status
   verbs:
   - patch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - workflows.jettisonproj.io
   resources:
