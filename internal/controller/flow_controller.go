@@ -36,6 +36,7 @@ import (
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
 	"github.com/jettisonproj/jettison-controller/internal/controller/appbuilder"
+	"github.com/jettisonproj/jettison-controller/internal/controller/eventbusbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/eventsourcebuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/ghsettings"
 	"github.com/jettisonproj/jettison-controller/internal/controller/sensorbuilder"
@@ -126,10 +127,50 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	detectedDrift := false
 
 	if !r.SyncedNamespaces[flow.Namespace] {
-		// todo: ideally the external deps could be moved to here, but currently
+
+		// Reconcile the EventBus in the Flow namespace
+		eventBus := eventbusbuilder.BuildEventBus(flow.Namespace)
+		existingEventBus := &eventsv1.EventBus{}
+		existingNamespaceName := client.ObjectKey{
+			Namespace: eventBus.ObjectMeta.Namespace,
+			Name:      eventBus.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingEventBus)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing EventBus", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingEventBusNotFound := err != nil
+
+		// Note: The ownerRef for the EventBus is not set, since
+		// it is shared by all Flows in the namespace
+
+		if existingEventBusNotFound {
+			if err := r.Create(ctx, eventBus); err != nil {
+				reconcilerlog.Error(err, "failed to create EventBus", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(eventBus.Spec, existingEventBus.Spec) {
+			//
+			// For discussion on the comparison here, see:
+			// https://github.com/kubernetes-sigs/kubebuilder/issues/592
+			//
+			// some field set by the operator has changed
+			existingEventBus.Spec = eventBus.Spec
+			if err := r.Update(ctx, existingEventBus); err != nil {
+				reconcilerlog.Error(err, "failed to update EventBus", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no EventBus drift detected", "namespace", flow.Namespace)
+		}
+
+		// todo: ideally the remaining external deps could be moved to here, but currently
 		// non-standard fields are used
-		// Reconcile the EventBus ./apps/argo/argo-events/common/event-bus.yaml
-		//   dynamic: namespace
 		// Reconcile the Sensor RBAC https://raw.githubusercontent.com/argoproj/argo-events/master/examples/rbac/sensor-rbac.yaml
 		//   dynamic: namespace
 		//   description: Sensor needs RBAC to create workflows
