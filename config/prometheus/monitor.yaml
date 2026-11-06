@@ -27,4 +27,5 @@ spec:
         insecureSkipVerify: true
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app: jettison-controller-manager
+      jettison-app: jettison-controller-manager

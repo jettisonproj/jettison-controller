@@ -12,7 +12,8 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      control-plane: controller-manager
+      app: jettison-controller-manager
+      jettison-app: jettison-controller-manager
   policyTypes:
     - Ingress
   ingress:
