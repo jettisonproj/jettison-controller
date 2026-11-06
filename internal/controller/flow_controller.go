@@ -309,7 +309,6 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			detectedDrift = true
 		} else if existingSensorRoleBinding.RoleRef != sensorRoleBinding.RoleRef {
 			// The RoleRef is immutable, so the RoleBinding must be recreated.
-			// The next reconcile will create it again
 			if err := r.Delete(ctx, existingSensorRoleBinding); err != nil {
 				reconcilerlog.Error(err, "failed to delete Sensor RoleBinding with outdated RoleRef", "namespace", flow.Namespace)
 				return ctrl.Result{}, err
@@ -318,6 +317,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 				reconcilerlog.Error(err, "failed to recreate Sensor RoleBinding", "namespace", flow.Namespace)
 				return ctrl.Result{}, err
 			}
+			detectedDrift = true
 		} else if !equality.Semantic.DeepDerivative(sensorRoleBinding.Subjects, existingSensorRoleBinding.Subjects) {
 			existingSensorRoleBinding.Subjects = sensorRoleBinding.Subjects
 			if err := r.Update(ctx, existingSensorRoleBinding); err != nil {
