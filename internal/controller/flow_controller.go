@@ -78,6 +78,9 @@ type FlowReconciler struct {
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts;workflows,verbs=get;list;watch
 
+// Jettison supports retrying an argo rollout
+// +kubebuilder:rbac:groups=argoproj.io,resources=rollouts/status,verbs=patch
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
