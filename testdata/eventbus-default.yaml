@@ -1,0 +1,8 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventBus
+metadata:
+  namespace: jettisonproj
+  name: default
+spec:
+  jetstreamExotic:
+    url: nats://nats.nats
