@@ -77,7 +77,7 @@ type FlowReconciler struct {
 // +kubebuilder:rbac:groups=workflows.jettisonproj.io,resources=flows/finalizers,verbs=update
 
 // Jettison manages argo resources to manage deployments
-// Workflows are needed here to grant the Sensoor ServiceAccount below access
+// Workflows are needed here to grant the Sensor ServiceAccount below access
 // +kubebuilder:rbac:groups=argoproj.io,resources=applications;appprojects;clusterworkflowtemplates;eventbus;eventsources;sensors;workflows,verbs=get;list;watch;create;update;patch;delete
 
 // Jettison manages PVCs for BuildKit image builds
@@ -314,7 +314,10 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 				reconcilerlog.Error(err, "failed to delete Sensor RoleBinding with outdated RoleRef", "namespace", flow.Namespace)
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{Requeue: true}, nil
+			if err := r.Create(ctx, sensorRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to recreate Sensor RoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
 		} else if !equality.Semantic.DeepDerivative(sensorRoleBinding.Subjects, existingSensorRoleBinding.Subjects) {
 			existingSensorRoleBinding.Subjects = sensorRoleBinding.Subjects
 			if err := r.Update(ctx, existingSensorRoleBinding); err != nil {
