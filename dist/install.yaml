@@ -268,6 +268,17 @@ rules:
   - list
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - argoproj.io
   resources:
   - applications

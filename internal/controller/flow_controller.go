@@ -75,6 +75,9 @@ type FlowReconciler struct {
 // Jettison manages argo resources to manage deployments
 // +kubebuilder:rbac:groups=argoproj.io,resources=applications;appprojects;clusterworkflowtemplates;eventbus;eventsources;sensors,verbs=get;list;watch;create;update;patch;delete
 
+// Jettison manages PVCs for BuildKit image builds
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;create;update;patch
+
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts;workflows,verbs=get;list;watch
