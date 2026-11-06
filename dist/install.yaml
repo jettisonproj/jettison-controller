@@ -273,6 +273,7 @@ rules:
   - applications
   - appprojects
   - clusterworkflowtemplates
+  - eventbus
   - eventsources
   - sensors
   verbs:
