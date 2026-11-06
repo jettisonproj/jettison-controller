@@ -415,7 +415,8 @@ spec:
     protocol: TCP
     targetPort: 2846
   selector:
-    control-plane: controller-manager
+    app: jettison-controller-manager
+    jettison-app: jettison-controller-manager
 ---
 apiVersion: v1
 kind: Service
@@ -433,28 +434,31 @@ spec:
     protocol: TCP
     targetPort: 8443
   selector:
-    control-plane: controller-manager
+    app: jettison-controller-manager
+    jettison-app: jettison-controller-manager
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
+    app: jettison-controller-manager
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: jettison-controller
-    control-plane: controller-manager
   name: jettison-controller-manager
   namespace: jettisonproj
 spec:
   replicas: 1
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app: jettison-controller-manager
+      jettison-app: jettison-controller-manager
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        control-plane: controller-manager
+        app: jettison-controller-manager
+        jettison-app: jettison-controller-manager
     spec:
       containers:
       - args:

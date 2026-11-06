@@ -14,4 +14,5 @@ spec:
     protocol: TCP
     targetPort: 2846
   selector:
-    control-plane: controller-manager
+    app: jettison-controller-manager
+    jettison-app: jettison-controller-manager
