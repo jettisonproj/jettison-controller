@@ -10,6 +10,7 @@ rules:
   - namespaces
   - pods
   - pods/log
+  - services
   verbs:
   - get
   - list
@@ -25,6 +26,23 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysistemplates
+  - rollouts
+  verbs:
+  - get
+  - list
   - watch
 - apiGroups:
   - argoproj.io
@@ -47,17 +65,45 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
-  - rollouts
+  - rollouts/status
+  verbs:
+  - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflowtaskresults
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - argoproj.io
+  - rbac.authorization.k8s.io
   resources:
-  - rollouts/status
+  - clusterrolebindings
+  - clusterroles
   verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resourceNames:
+  - deploy-step-executor
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  verbs:
+  - delete
   - patch
+  - update
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
