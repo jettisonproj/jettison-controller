@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: deploy-step-executor-jettisonproj
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: deploy-step-executor
+subjects:
+  - kind: ServiceAccount
+    name: deploy-step-executor
+    namespace: jettisonproj

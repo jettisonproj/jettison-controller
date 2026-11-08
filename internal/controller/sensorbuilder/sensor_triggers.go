@@ -10,6 +10,7 @@ import (
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
+	"github.com/jettisonproj/jettison-controller/internal/controller/rbacbuilder"
 )
 
 // The Sensor trigger defines the actual k8s resources/workflows that will be launched
@@ -80,8 +81,7 @@ func getWorkflowTemplate(
 				Parameters: workflowParameters,
 			},
 			// ServiceAccountName is the name of the ServiceAccount to run all pods of the workflow as.
-			// todo should extract out
-			ServiceAccountName:    "deploy-step-executor",
+			ServiceAccountName:    rbacbuilder.WorkflowServiceAccountName,
 			ActiveDeadlineSeconds: flow.Spec.ActiveDeadlineSeconds,
 			Hooks: workflowsv1.LifecycleHooks{
 				workflowsv1.ExitLifecycleEvent: getFinalDAGTask(triggerType),
