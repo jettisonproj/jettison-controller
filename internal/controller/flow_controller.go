@@ -43,6 +43,7 @@ import (
 	"github.com/jettisonproj/jettison-controller/internal/controller/ghsettings"
 	"github.com/jettisonproj/jettison-controller/internal/controller/pvcbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/rbacbuilder"
+	"github.com/jettisonproj/jettison-controller/internal/controller/secretbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/controller/sensorbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/gitutil"
 )
@@ -57,6 +58,14 @@ type FlowReconciler struct {
 	Scheme          *runtime.Scheme
 	GitHubTransport *ghinstallation.AppsTransport
 	GitHubClient    *github.Client
+
+	// APIReader reads directly from the API server. It is used for secrets,
+	// so the controller does not need to cache all secrets in the cluster
+	APIReader client.Reader
+
+	// Secrets loaded from the source namespace at startup.
+	// These are copied into each Flow namespace
+	FlowSecrets []*corev1.Secret
 
 	// Multiple Flows can share a namespace
 	// Keep track of synced namespaces to avoid unnecessary updates
@@ -98,6 +107,11 @@ type FlowReconciler struct {
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames=deploy-step-executor,verbs=update;patch;delete
 // The ClusterRoleBinding names are per namespace, so they cannot be restricted by resourceNames
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+
+// Jettison copies the Flow secrets from the source namespace into each Flow namespace.
+// Create cannot be restricted by resourceNames
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=create
+// +kubebuilder:rbac:groups="",resources=secrets,resourceNames=github-access;github-key;regcred;s3-access,verbs=get;update;patch;delete
 
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
@@ -521,6 +535,60 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			detectedDrift = true
 		} else {
 			reconcilerlog.Info("no Workflow ClusterRoleBinding drift detected", "namespace", flow.Namespace)
+		}
+
+		// Reconcile the Flow secrets in the Flow namespace.
+		// The secrets are not reconciled in the source namespace itself
+		if flow.Namespace != secretbuilder.SourceNamespace {
+			for _, sourceSecret := range r.FlowSecrets {
+				secret := secretbuilder.BuildFlowSecret(sourceSecret, flow.Namespace)
+				existingSecret := &corev1.Secret{}
+				existingNamespaceName = client.ObjectKey{
+					Namespace: secret.ObjectMeta.Namespace,
+					Name:      secret.ObjectMeta.Name,
+				}
+
+				// Read directly from the API server to avoid caching all secrets
+				err = r.APIReader.Get(ctx, existingNamespaceName, existingSecret)
+				if err != nil && !apierrors.IsNotFound(err) {
+					reconcilerlog.Error(err, "failed to check for existing Secret", "namespace", flow.Namespace, "secret", secret.ObjectMeta.Name)
+					return ctrl.Result{}, err
+				}
+
+				existingSecretNotFound := err != nil
+
+				// Note: The ownerRef for the Secret is not set, since
+				// it is shared by all Flows in the namespace
+
+				if existingSecretNotFound {
+					if err := r.Create(ctx, secret); err != nil {
+						reconcilerlog.Error(err, "failed to create Secret", "namespace", flow.Namespace, "secret", secret.ObjectMeta.Name)
+						return ctrl.Result{}, err
+					}
+					detectedDrift = true
+				} else if existingSecret.Type != secret.Type {
+					// The Type is immutable, so the Secret must be recreated.
+					if err := r.Delete(ctx, existingSecret); err != nil {
+						reconcilerlog.Error(err, "failed to delete Secret with outdated Type", "namespace", flow.Namespace, "secret", secret.ObjectMeta.Name)
+						return ctrl.Result{}, err
+					}
+					if err := r.Create(ctx, secret); err != nil {
+						reconcilerlog.Error(err, "failed to recreate Secret", "namespace", flow.Namespace, "secret", secret.ObjectMeta.Name)
+						return ctrl.Result{}, err
+					}
+					detectedDrift = true
+				} else if !equality.Semantic.DeepEqual(secret.Data, existingSecret.Data) {
+					// The Data must match exactly, so DeepEqual is used instead of DeepDerivative
+					existingSecret.Data = secret.Data
+					if err := r.Update(ctx, existingSecret); err != nil {
+						reconcilerlog.Error(err, "failed to update Secret", "namespace", flow.Namespace, "secret", secret.ObjectMeta.Name)
+						return ctrl.Result{}, err
+					}
+					detectedDrift = true
+				} else {
+					reconcilerlog.Info("no Secret drift detected", "namespace", flow.Namespace, "secret", secret.ObjectMeta.Name)
+				}
+			}
 		}
 
 		r.SyncedNamespaces[flow.Namespace] = true

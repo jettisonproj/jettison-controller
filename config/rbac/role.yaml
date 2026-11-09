@@ -28,6 +28,26 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resourceNames:
+  - github-access
+  - github-key
+  - regcred
+  - s3-access
+  resources:
+  - secrets
+  verbs:
+  - delete
+  - get
+  - patch
+  - update
+- apiGroups:
   - apps
   resources:
   - deployments
