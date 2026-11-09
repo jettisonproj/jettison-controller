@@ -87,6 +87,18 @@ type FlowReconciler struct {
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete
 
+// Jettison manages the Workflow RBAC for the pods that run the Flow workflows.
+// Jettison must hold the permissions it grants to the Workflow ServiceAccount below
+// +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=analysistemplates;rollouts,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=workflowtaskresults,verbs=create;patch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames=deploy-step-executor,verbs=update;patch;delete
+// The ClusterRoleBinding names are per namespace, so they cannot be restricted by resourceNames
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch
