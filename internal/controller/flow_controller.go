@@ -87,6 +87,18 @@ type FlowReconciler struct {
 // +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete
 
+// Jettison manages the Workflow RBAC for the pods that run the Flow workflows.
+// Jettison must hold the permissions it grants to the Workflow ServiceAccount below
+// +kubebuilder:rbac:groups="",resources=services;serviceaccounts,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=analysistemplates;rollouts,verbs=get;list;watch
+// +kubebuilder:rbac:groups=argoproj.io,resources=workflowtaskresults,verbs=create;patch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames=deploy-step-executor,verbs=update;patch;delete
+// The ClusterRoleBinding names are per namespace, so they cannot be restricted by resourceNames
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+
 // Jettison reads deployed resources to provide updated info to users
 // +kubebuilder:rbac:groups="",resources=namespaces;pods;pods/log,verbs=get;list;watch
 // +kubebuilder:rbac:groups=argoproj.io,resources=rollouts,verbs=get;list;watch
@@ -329,16 +341,188 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			reconcilerlog.Info("no Sensor RoleBinding drift detected", "namespace", flow.Namespace)
 		}
 
-		// todo: ideally the remaining external deps could be moved to here, but currently
-		// non-standard fields are used
-		// Reconcile the Workflow RBAC https://raw.githubusercontent.com/argoproj/argo-events/master/examples/rbac/workflow-rbac.yaml
-		//   dynamic: namespace
-		//   description: the workflow manager pods themselves need to update the workflowtaskresults
-		// Reconcile the ServiceAccount ./apps/argo/argo-events/common/serviceaccount-deploy-step-executor.yaml
-		// Reconcile the Role ./apps/argo/argo-events/common/role-deploy-step-executor.yaml
-		// Reconcile the RoleBinding ./apps/argo/argo-events/common/rolebinding-deploy-step-executor.yaml
-		//   dynamic: namespace
-		//   description: the actual deploy step pods may need permissions (e.g. ArgoCD deploy step monitors resources after deploy)
+		// Reconcile the Workflow ServiceAccount in the Flow namespace
+		workflowServiceAccount := rbacbuilder.BuildWorkflowServiceAccount(flow.Namespace)
+		existingWorkflowServiceAccount := &corev1.ServiceAccount{}
+		existingNamespaceName = client.ObjectKey{
+			Namespace: workflowServiceAccount.ObjectMeta.Namespace,
+			Name:      workflowServiceAccount.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingWorkflowServiceAccount)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Workflow ServiceAccount", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingWorkflowServiceAccountNotFound := err != nil
+
+		// Note: The ownerRef for the Workflow RBAC is not set, since
+		// it is shared by all Flows in the namespace
+
+		if existingWorkflowServiceAccountNotFound {
+			if err := r.Create(ctx, workflowServiceAccount); err != nil {
+				reconcilerlog.Error(err, "failed to create Workflow ServiceAccount", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			// The ServiceAccount has no fields set by the operator besides the name
+			reconcilerlog.Info("no Workflow ServiceAccount drift detected", "namespace", flow.Namespace)
+		}
+
+		// Reconcile the Workflow Role in the Flow namespace
+		workflowRole := rbacbuilder.BuildWorkflowRole(flow.Namespace)
+		existingWorkflowRole := &rbacv1.Role{}
+		existingNamespaceName = client.ObjectKey{
+			Namespace: workflowRole.ObjectMeta.Namespace,
+			Name:      workflowRole.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingWorkflowRole)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Workflow Role", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingWorkflowRoleNotFound := err != nil
+
+		if existingWorkflowRoleNotFound {
+			if err := r.Create(ctx, workflowRole); err != nil {
+				reconcilerlog.Error(err, "failed to create Workflow Role", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(workflowRole.Rules, existingWorkflowRole.Rules) {
+			existingWorkflowRole.Rules = workflowRole.Rules
+			if err := r.Update(ctx, existingWorkflowRole); err != nil {
+				reconcilerlog.Error(err, "failed to update Workflow Role", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no Workflow Role drift detected", "namespace", flow.Namespace)
+		}
+
+		// Reconcile the Workflow RoleBinding in the Flow namespace
+		workflowRoleBinding := rbacbuilder.BuildWorkflowRoleBinding(flow.Namespace)
+		existingWorkflowRoleBinding := &rbacv1.RoleBinding{}
+		existingNamespaceName = client.ObjectKey{
+			Namespace: workflowRoleBinding.ObjectMeta.Namespace,
+			Name:      workflowRoleBinding.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingWorkflowRoleBinding)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Workflow RoleBinding", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingWorkflowRoleBindingNotFound := err != nil
+
+		if existingWorkflowRoleBindingNotFound {
+			if err := r.Create(ctx, workflowRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to create Workflow RoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if existingWorkflowRoleBinding.RoleRef != workflowRoleBinding.RoleRef {
+			// The RoleRef is immutable, so the RoleBinding must be recreated.
+			if err := r.Delete(ctx, existingWorkflowRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to delete Workflow RoleBinding with outdated RoleRef", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			if err := r.Create(ctx, workflowRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to recreate Workflow RoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(workflowRoleBinding.Subjects, existingWorkflowRoleBinding.Subjects) {
+			existingWorkflowRoleBinding.Subjects = workflowRoleBinding.Subjects
+			if err := r.Update(ctx, existingWorkflowRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to update Workflow RoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no Workflow RoleBinding drift detected", "namespace", flow.Namespace)
+		}
+
+		// Reconcile the Workflow ClusterRole, which is shared by all Flow namespaces
+		workflowClusterRole := rbacbuilder.BuildWorkflowClusterRole()
+		existingWorkflowClusterRole := &rbacv1.ClusterRole{}
+		existingNamespaceName = client.ObjectKey{
+			Name: workflowClusterRole.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingWorkflowClusterRole)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Workflow ClusterRole")
+			return ctrl.Result{}, err
+		}
+
+		existingWorkflowClusterRoleNotFound := err != nil
+
+		if existingWorkflowClusterRoleNotFound {
+			if err := r.Create(ctx, workflowClusterRole); err != nil {
+				reconcilerlog.Error(err, "failed to create Workflow ClusterRole")
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(workflowClusterRole.Rules, existingWorkflowClusterRole.Rules) {
+			existingWorkflowClusterRole.Rules = workflowClusterRole.Rules
+			if err := r.Update(ctx, existingWorkflowClusterRole); err != nil {
+				reconcilerlog.Error(err, "failed to update Workflow ClusterRole")
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no Workflow ClusterRole drift detected")
+		}
+
+		// Reconcile the Workflow ClusterRoleBinding for the Flow namespace
+		workflowClusterRoleBinding := rbacbuilder.BuildWorkflowClusterRoleBinding(flow.Namespace)
+		existingWorkflowClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+		existingNamespaceName = client.ObjectKey{
+			Name: workflowClusterRoleBinding.ObjectMeta.Name,
+		}
+
+		err = r.Get(ctx, existingNamespaceName, existingWorkflowClusterRoleBinding)
+		if err != nil && !apierrors.IsNotFound(err) {
+			reconcilerlog.Error(err, "failed to check for existing Workflow ClusterRoleBinding", "namespace", flow.Namespace)
+			return ctrl.Result{}, err
+		}
+
+		existingWorkflowClusterRoleBindingNotFound := err != nil
+
+		if existingWorkflowClusterRoleBindingNotFound {
+			if err := r.Create(ctx, workflowClusterRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to create Workflow ClusterRoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if existingWorkflowClusterRoleBinding.RoleRef != workflowClusterRoleBinding.RoleRef {
+			// The RoleRef is immutable, so the ClusterRoleBinding must be recreated.
+			if err := r.Delete(ctx, existingWorkflowClusterRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to delete Workflow ClusterRoleBinding with outdated RoleRef", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			if err := r.Create(ctx, workflowClusterRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to recreate Workflow ClusterRoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else if !equality.Semantic.DeepDerivative(workflowClusterRoleBinding.Subjects, existingWorkflowClusterRoleBinding.Subjects) {
+			existingWorkflowClusterRoleBinding.Subjects = workflowClusterRoleBinding.Subjects
+			if err := r.Update(ctx, existingWorkflowClusterRoleBinding); err != nil {
+				reconcilerlog.Error(err, "failed to update Workflow ClusterRoleBinding", "namespace", flow.Namespace)
+				return ctrl.Result{}, err
+			}
+			detectedDrift = true
+		} else {
+			reconcilerlog.Info("no Workflow ClusterRoleBinding drift detected", "namespace", flow.Namespace)
+		}
+
 		r.SyncedNamespaces[flow.Namespace] = true
 	}
 

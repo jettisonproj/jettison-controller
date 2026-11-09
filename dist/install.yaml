@@ -263,6 +263,7 @@ rules:
   - namespaces
   - pods
   - pods/log
+  - services
   verbs:
   - get
   - list
@@ -278,6 +279,23 @@ rules:
   - list
   - patch
   - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - analysistemplates
+  - rollouts
+  verbs:
+  - get
+  - list
   - watch
 - apiGroups:
   - argoproj.io
@@ -300,20 +318,28 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
-  - rollouts
+  - rollouts/status
+  verbs:
+  - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflowtaskresults
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
   verbs:
   - get
   - list
   - watch
 - apiGroups:
-  - argoproj.io
-  resources:
-  - rollouts/status
-  verbs:
-  - patch
-- apiGroups:
   - rbac.authorization.k8s.io
   resources:
+  - clusterrolebindings
   - rolebindings
   - roles
   verbs:
@@ -324,6 +350,25 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resourceNames:
+  - deploy-step-executor
+  resources:
+  - clusterroles
+  verbs:
+  - delete
+  - patch
+  - update
 - apiGroups:
   - workflows.jettisonproj.io
   resources:

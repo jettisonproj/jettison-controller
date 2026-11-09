@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploy-step-executor
+rules:
+  # k8s standard APIs
+  - apiGroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - clusterroles
+      - clusterrolebindings
+    verbs:
+      - get
+      - list
+      - watch
