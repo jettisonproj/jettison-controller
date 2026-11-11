@@ -46,6 +46,7 @@ import (
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	"github.com/jettisonproj/jettison-controller/internal/controller"
 	"github.com/jettisonproj/jettison-controller/internal/controller/ghsettings"
+	"github.com/jettisonproj/jettison-controller/internal/controller/secretbuilder"
 	"github.com/jettisonproj/jettison-controller/internal/webserver"
 	"github.com/jettisonproj/jettison-controller/internal/workflowtemplates"
 	// +kubebuilder:scaffold:imports
@@ -195,11 +196,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Load the Flow secrets at startup. The manager cache is not started
+	// yet, so the API reader is used to read directly from the API server
+	flowSecrets, err := secretbuilder.LoadFlowSecrets(context.Background(), mgr.GetAPIReader())
+	if err != nil {
+		setupLog.Error(err, "unable to load Flow secrets")
+		os.Exit(1)
+	}
+
 	if err = (&controller.FlowReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		GitHubTransport:  githubTransport,
 		GitHubClient:     githubClient,
+		APIReader:        mgr.GetAPIReader(),
+		FlowSecrets:      flowSecrets,
 		SyncedNamespaces: make(map[string]bool),
 		SyncedProjects:   make(map[string]bool),
 		SyncedRepos:      make(map[string]map[string]bool),
