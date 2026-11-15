@@ -183,3 +183,10 @@ spec:
               operation: append
   template:
     serviceAccountName: operate-workflow-sa
+    container:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          memory: 128Mi

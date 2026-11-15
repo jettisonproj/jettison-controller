@@ -4,10 +4,21 @@ import (
 	"fmt"
 
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	v1alpha1 "github.com/jettisonproj/jettison-controller/api/v1alpha1"
 	v1alpha1base "github.com/jettisonproj/jettison-controller/api/v1alpha1/base"
 	"github.com/jettisonproj/jettison-controller/internal/controller/rbacbuilder"
+)
+
+const (
+	// Resources for the sensor pod's main container. Sensors are mostly idle,
+	// waiting on the event bus, and typically use under 10m CPU and 20Mi memory.
+	// No CPU limit is set to avoid throttling during event bursts.
+	sensorCPURequest    = "10m"
+	sensorMemoryRequest = "32Mi"
+	sensorMemoryLimit   = "128Mi"
 )
 
 // Build a Sensor for the specified Flow triggers and steps
@@ -34,6 +45,17 @@ func BuildSensor(
 			Template: &eventsv1.Template{
 				// ServiceAccountName is the name of the ServiceAccount to use to run sensor pod
 				ServiceAccountName: rbacbuilder.SensorServiceAccountName,
+				Container: &eventsv1.Container{
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse(sensorCPURequest),
+							corev1.ResourceMemory: resource.MustParse(sensorMemoryRequest),
+						},
+						Limits: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse(sensorMemoryLimit),
+						},
+					},
+				},
 			},
 		},
 	}, nil
