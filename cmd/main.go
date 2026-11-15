@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -39,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -55,6 +57,12 @@ import (
 const (
 	podNamespaceEnvVar = "POD_NAMESPACE"
 	podNameEnvVar      = "POD_NAME"
+
+	// This should be below the "terminationGracePeriodSeconds" in:
+	// - dist/install.yaml
+	// - config/manager/manager.yaml
+	// - https://github.com/jettisonproj/jettison-argo-configs/blob/main/prod/controller/controller-rollout.yaml
+	gracefulShutdownTimeout = 10 * time.Second
 )
 
 var (
@@ -166,6 +174,7 @@ func main() {
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
 		LeaderElectionReleaseOnCancel: true,
+		GracefulShutdownTimeout:       new(gracefulShutdownTimeout),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to create manager")
@@ -255,7 +264,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	go workflowtemplates.SyncWorkflowTemplates(mgr.GetClient())
+	err = mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
+		workflowtemplates.SyncWorkflowTemplates(ctx, mgr.GetClient())
+		return nil
+	}))
+	if err != nil {
+		setupLog.Error(err, "unable to add workflow template sync to manager")
+		os.Exit(1)
+	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

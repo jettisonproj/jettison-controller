@@ -604,7 +604,7 @@ spec:
         - mountPath: /argocd-jettisonproj-secret
           name: argocd-jettisonproj-secret
       serviceAccountName: jettison-controller-manager
-      terminationGracePeriodSeconds: 10
+      terminationGracePeriodSeconds: 20
       volumes:
       - name: github-key
         secret:
