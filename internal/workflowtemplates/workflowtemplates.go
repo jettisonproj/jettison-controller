@@ -2,17 +2,21 @@ package workflowtemplates
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	workflows "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
+	syncRetryInterval = 5 * time.Second
+
 	// The image registry used for pushing images. Set to blank to use docker hub
 	imageRegistry = "ghcr.io/"
 	// GitHub App ID of the jettisonproj app
@@ -754,16 +758,19 @@ var (
 	}
 )
 
-func SyncWorkflowTemplates(client ctrlclient.Client) {
-	for {
+// SyncWorkflowTemplates creates or updates the cluster workflow templates,
+// retrying until it succeeds. It returns an error if ctx is cancelled before
+// the templates are synced
+func SyncWorkflowTemplates(ctx context.Context, client ctrlclient.Client) error {
+	cicdTemplate := &workflowsv1.ClusterWorkflowTemplate{
+		TypeMeta:   CICDTemplate.TypeMeta,
+		ObjectMeta: CICDTemplate.ObjectMeta,
+	}
+	var lastErr error
+	err := wait.PollUntilContextCancel(ctx, syncRetryInterval, true, func(ctx context.Context) (bool, error) {
 		log.Info("syncing cluster workflow templates")
-		cicdTemplate := &workflowsv1.ClusterWorkflowTemplate{
-			TypeMeta:   CICDTemplate.TypeMeta,
-			ObjectMeta: CICDTemplate.ObjectMeta,
-		}
-
 		op, err := ctrl.CreateOrUpdate(
-			context.Background(),
+			ctx,
 			client,
 			cicdTemplate,
 			func() error {
@@ -772,11 +779,16 @@ func SyncWorkflowTemplates(client ctrlclient.Client) {
 			},
 		)
 		if err != nil {
+			lastErr = err
 			log.Error(err, "unable to sync cluster workflow templates. Retrying...")
-			time.Sleep(5 * time.Second)
-			continue
+			return false, nil
 		}
 		log.Info("synced cluster workflow templates", "operation", op)
-		break
+		return true, nil
+	})
+	if err != nil {
+		log.Info("stopping cluster workflow template sync before templates were synced", "reason", err, "lastError", lastErr)
+		return fmt.Errorf("cluster workflow templates not synced: %w (last error: %v)", err, lastErr)
 	}
+	return nil
 }
