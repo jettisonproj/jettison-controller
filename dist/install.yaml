@@ -183,6 +183,12 @@ rules:
   - patch
   - delete
 - apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - delete
+- apiGroups:
   - coordination.k8s.io
   resources:
   - leases
