@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -55,6 +56,9 @@ import (
 const (
 	podNamespaceEnvVar = "POD_NAMESPACE"
 	podNameEnvVar      = "POD_NAME"
+	podRoleEnvVar      = "POD_ROLE"
+	podRoleStable      = "stable"
+	stablePodDelay     = 15 * time.Second
 )
 
 var (
@@ -106,6 +110,12 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	controllerPodRole := os.Getenv(podRoleEnvVar)
+	if controllerPodRole == podRoleStable {
+		setupLog.Info(fmt.Sprintf("detected role %s. Sleep to give other roles priority", controllerPodRole))
+		time.Sleep(stablePodDelay)
+	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
