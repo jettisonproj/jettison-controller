@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -54,16 +55,16 @@ import (
 )
 
 const (
+	leaderElectionID   = "3d4b3c11.jettisonproj.io"
 	podNamespaceEnvVar = "POD_NAMESPACE"
 	podNameEnvVar      = "POD_NAME"
 	podAppEnvVar       = "POD_APP"
 	podRoleEnvVar      = "POD_ROLE"
+	appLabelKey        = "app"
+	roleLabelKey       = "role"
 	podRoleStable      = "stable"
 	podRoleCanary      = "canary"
 	stablePodDelay     = 15 * time.Second
-	leaderElectionID   = "3d4b3c11.jettisonproj.io"
-	appLabelKey        = "app"
-	roleLabelKey       = "role"
 )
 
 var (
@@ -166,6 +167,18 @@ func main() {
 	controllerPodName := os.Getenv(podNameEnvVar)
 	if controllerPodName == "" {
 		setupLog.Info(fmt.Sprintf("pod name env var not set: %s", podNameEnvVar))
+		os.Exit(1)
+	}
+
+	controllerPodApp := os.Getenv(podAppEnvVar)
+	if controllerPodApp == "" {
+		setupLog.Info(fmt.Sprintf("pod app env var not set: %s", podAppEnvVar))
+		os.Exit(1)
+	}
+
+	controllerPodRole := os.Getenv(podRoleEnvVar)
+	if controllerPodRole == "" {
+		setupLog.Info(fmt.Sprintf("pod role env var not set: %s", podRoleEnvVar))
 		os.Exit(1)
 	}
 
@@ -275,7 +288,13 @@ func main() {
 	}
 
 	if enableLeaderElection {
-		err = handleLeaderElectionStartup(mgr.GetAPIReader(), controllerPodNamespace)
+		err = handleLeaderElectionStartup(
+			mgr.GetAPIReader(),
+			mgr.GetClient(),
+			controllerPodNamespace,
+			controllerPodApp,
+			controllerPodRole,
+		)
 		if err != nil {
 			setupLog.Error(err, "failed to handle leader election startup")
 			os.Exit(1)
@@ -294,42 +313,78 @@ func main() {
 // Currently, Coordinated Leader Election is not supported.
 // See: https://github.com/kubernetes-sigs/controller-runtime/issues/3309
 // As a workaround, attempt to prioritize controllers with the "canary"
-// role as leaders, so that it is tested before promoting further
-func handleLeaderElectionStartup(reader client.Reader, controllerPodNamespace string) error {
-	controllerPodRole := os.Getenv(podRoleEnvVar)
-	controllerPodApp := os.Getenv(podAppEnvVar)
+// role as leaders, so that it is tested before promoting further:
+//   - "canary" pods delete the "stable" pods, so that the current leader
+//     releases the lease (see LeaderElectionReleaseOnCancel) and the canary
+//     can take over
+//   - "stable" pods sleep at startup if canary pods are running, so that a
+//     recreated stable pod does not win the lease back from the canary
+func handleLeaderElectionStartup(
+	reader client.Reader,
+	writer client.Writer,
+	controllerPodNamespace string,
+	controllerPodApp string,
+	controllerPodRole string,
+) error {
 	setupLog.Info("detected app and role", "app", controllerPodApp, "role", controllerPodRole)
 
-	if controllerPodRole == podRoleStable {
-		canaryPods := &corev1.PodList{}
-		err := reader.List(
-			context.Background(),
-			canaryPods,
-			client.InNamespace(controllerPodNamespace),
-			client.MatchingLabels{appLabelKey: controllerPodApp, roleLabelKey: podRoleCanary},
-		)
+	switch controllerPodRole {
+	case podRoleStable:
+		canaryPods, err := listActivePodsWithRole(reader, controllerPodNamespace, controllerPodApp, podRoleCanary)
 		if err != nil {
-			return fmt.Errorf("failed to list canary pods: %s", err)
+			return err
 		}
 
-		if areCanaryPodsRunning(canaryPods.Items) {
-			setupLog.Info("canary pods found. Sleep to give canary pods priority")
+		if len(canaryPods) > 0 {
+			setupLog.Info("canary pods found. Sleep to give canary pods priority...")
 			time.Sleep(stablePodDelay)
 			return nil
 		}
 
 		setupLog.Info("no canary pods found. Continuing...")
 		return nil
-	}
 
-	return nil
+	case podRoleCanary:
+		stablePods, err := listActivePodsWithRole(reader, controllerPodNamespace, controllerPodApp, podRoleStable)
+		if err != nil {
+			return err
+		}
+
+		for i := range stablePods {
+			stablePod := &stablePods[i]
+			setupLog.Info("deleting stable pod so canary can be the leader", "pod", stablePod.Name)
+			err = writer.Delete(context.Background(), stablePod)
+			if client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to delete stable pod %s: %s", stablePod.Name, err)
+			}
+		}
+		return nil
+
+	default:
+		setupLog.Info("unknown pod role", "role", controllerPodRole)
+		return nil
+	}
 }
 
-func areCanaryPodsRunning(canaryPods []corev1.Pod) bool {
-	for i := range canaryPods {
-		if canaryPods[i].DeletionTimestamp == nil {
-			return true
-		}
+func listActivePodsWithRole(
+	reader client.Reader,
+	namespace string,
+	app string,
+	role string,
+) ([]corev1.Pod, error) {
+	pods := &corev1.PodList{}
+	err := reader.List(
+		context.Background(),
+		pods,
+		client.InNamespace(namespace),
+		client.MatchingLabels{appLabelKey: app, roleLabelKey: role},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list %s pods: %s", role, err)
 	}
-	return false
+	return slices.DeleteFunc(pods.Items, isPodDeleted), nil
+}
+
+func isPodDeleted(pod corev1.Pod) bool {
+	return pod.DeletionTimestamp != nil
 }
