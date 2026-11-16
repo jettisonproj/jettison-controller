@@ -50,6 +50,7 @@ type FlowWebServer struct {
 	Scheme                 *runtime.Scheme
 	ControllerPodNamespace string
 	ControllerPodName      string
+	ShutdownTimeout        time.Duration
 	flowWatcher            *FlowWatcher
 	mysqlWorkflowsMap      map[string]map[string]workflowsv1.Workflow
 	syncClient             *argosync.SyncClient
@@ -114,9 +115,10 @@ func (s *FlowWebServer) SetupWithManager(mgr ctrl.Manager) error {
 	mux.HandleFunc("POST /api/v1/namespaces/{namespace}/applications/{name}/sync", s.syncApplication)
 
 	err = mgr.Add(&manager.Server{
-		Name:     "jettison server",
-		Server:   newServer(mux),
-		Listener: serverListener,
+		Name:            "jettison server",
+		Server:          newServer(mux),
+		Listener:        serverListener,
+		ShutdownTimeout: &s.ShutdownTimeout,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to add webserver to manager: %s", err)

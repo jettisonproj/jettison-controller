@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -55,6 +56,16 @@ import (
 const (
 	podNamespaceEnvVar = "POD_NAMESPACE"
 	podNameEnvVar      = "POD_NAME"
+
+	// This should be below the "terminationGracePeriodSeconds" in:
+	// - dist/install.yaml
+	// - config/manager/manager.yaml
+	// - https://github.com/jettisonproj/jettison-argo-configs/blob/main/prod/controller/controller-rollout.yaml
+	gracefulShutdownTimeout = 10 * time.Second
+
+	// This should be below gracefulShutdownTimeout, so in-flight webserver
+	// requests cannot use up the whole manager shutdown budget
+	webServerShutdownTimeout = 5 * time.Second
 )
 
 var (
@@ -178,7 +189,8 @@ func main() {
 		// the manager stops, so would be fine to enable this option. However,
 		// if you are doing or is intended to do any operation such as perform cleanups
 		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
+		LeaderElectionReleaseOnCancel: true,
+		GracefulShutdownTimeout:       new(gracefulShutdownTimeout),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to create manager")
@@ -251,6 +263,7 @@ func main() {
 		Scheme:                 mgr.GetScheme(),
 		ControllerPodNamespace: controllerPodNamespace,
 		ControllerPodName:      controllerPodName,
+		ShutdownTimeout:        webServerShutdownTimeout,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webserver", "webserver", "Flow")
 		os.Exit(1)
