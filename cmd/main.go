@@ -148,13 +148,26 @@ func main() {
 		// this setup is not recommended for production.
 	}
 
+	controllerPodNamespace := os.Getenv(podNamespaceEnvVar)
+	if controllerPodNamespace == "" {
+		setupLog.Info(fmt.Sprintf("pod namespace env var not set: %s", podNamespaceEnvVar))
+		os.Exit(1)
+	}
+
+	controllerPodName := os.Getenv(podNameEnvVar)
+	if controllerPodName == "" {
+		setupLog.Info(fmt.Sprintf("pod name env var not set: %s", podNameEnvVar))
+		os.Exit(1)
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsServerOptions,
-		WebhookServer:          webhookServer,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "3d4b3c11.jettisonproj.io",
+		Scheme:                  scheme,
+		Metrics:                 metricsServerOptions,
+		WebhookServer:           webhookServer,
+		HealthProbeBindAddress:  probeAddr,
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        "3d4b3c11.jettisonproj.io",
+		LeaderElectionNamespace: controllerPodNamespace,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
@@ -226,18 +239,6 @@ func main() {
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
-		os.Exit(1)
-	}
-
-	controllerPodNamespace := os.Getenv(podNamespaceEnvVar)
-	if controllerPodNamespace == "" {
-		setupLog.Info(fmt.Sprintf("pod namespace env var not set: %s", podNamespaceEnvVar))
-		os.Exit(1)
-	}
-
-	controllerPodName := os.Getenv(podNameEnvVar)
-	if controllerPodName == "" {
-		setupLog.Info(fmt.Sprintf("pod name env var not set: %s", podNameEnvVar))
 		os.Exit(1)
 	}
 
