@@ -32,7 +32,9 @@ import (
 	eventsv1 "github.com/argoproj/argo-events/pkg/apis/events/v1alpha1"
 	rolloutsv1 "github.com/argoproj/argo-rollouts/pkg/apis/rollouts/v1alpha1"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -59,6 +61,7 @@ const (
 	podRoleEnvVar      = "POD_ROLE"
 	podRoleStable      = "stable"
 	stablePodDelay     = 15 * time.Second
+	leaderElectionID   = "3d4b3c11.jettisonproj.io"
 )
 
 var (
@@ -110,12 +113,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	controllerPodRole := os.Getenv(podRoleEnvVar)
-	if controllerPodRole == podRoleStable {
-		setupLog.Info(fmt.Sprintf("detected role %s. Sleep to give other roles priority", controllerPodRole))
-		time.Sleep(stablePodDelay)
-	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -176,7 +173,7 @@ func main() {
 		WebhookServer:           webhookServer,
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
-		LeaderElectionID:        "3d4b3c11.jettisonproj.io",
+		LeaderElectionID:        leaderElectionID,
 		LeaderElectionNamespace: controllerPodNamespace,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
@@ -275,6 +272,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if enableLeaderElection {
+		err = handleLeaderElectionStartup(mgr.GetAPIReader(), controllerPodNamespace)
+		if err != nil {
+			setupLog.Error(err, "failed to handle leader election startup")
+			os.Exit(1)
+		}
+	}
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
@@ -282,4 +287,51 @@ func main() {
 	}
 
 	setupLog.Info("exiting immediately: the leader lease has been released")
+}
+
+// Currently, Coordinated Leader Election is not supported.
+// See: https://github.com/kubernetes-sigs/controller-runtime/issues/3309
+// As a workaround, attempt to prioritize controllers with the "canary"
+// role as leaders, so that it is tested before promoting further
+func handleLeaderElectionStartup(reader client.Reader, namespace string) error {
+	lease := &coordinationv1.Lease{}
+	leaseObjectKey := client.ObjectKey{Namespace: namespace, Name: leaderElectionID}
+	err := reader.Get(context.Background(), leaseObjectKey, lease)
+	if apierrors.IsNotFound(err) {
+		setupLog.Info("no existing leader election lease found. Continuing...")
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("error fetching lease at startup: %s", err)
+	}
+
+	leaseDurationSecondsPtr := lease.Spec.LeaseDurationSeconds
+	if leaseDurationSecondsPtr == nil {
+		setupLog.Info("leader election lease has no duration. Continuing...")
+		return nil
+	}
+
+	leaseDurationSeconds := *leaseDurationSecondsPtr
+
+	leaseRenewTimePtr := lease.Spec.RenewTime
+	if leaseRenewTimePtr == nil {
+		setupLog.Info("leader election lease has no renew time. Continuing...")
+		return nil
+	}
+
+	leaseRenewTime := *leaseRenewTimePtr
+
+	if leaseRenewTime.Time.Before(time.Now().Add(time.Duration(-1*leaseDurationSeconds) * time.Second)) {
+		setupLog.Info("leader election lease has not been renewed before the lease duration. Continuing...")
+		return nil
+	}
+
+	controllerPodRole := os.Getenv(podRoleEnvVar)
+	if controllerPodRole == podRoleStable {
+		setupLog.Info(fmt.Sprintf("detected role %s and a recent lease. Sleep to give other roles priority", controllerPodRole))
+		time.Sleep(stablePodDelay)
+	}
+
+	return nil
 }
