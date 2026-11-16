@@ -256,7 +256,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	go workflowtemplates.SyncWorkflowTemplates(mgr.GetClient())
+	workflowTemplateSyncer := &workflowtemplates.WorkflowTemplateSyncer{
+		Client: mgr.GetClient(),
+	}
+	err = mgr.Add(workflowTemplateSyncer)
+	if err != nil {
+		setupLog.Error(err, "failed to set up workflow template syncer")
+		os.Exit(1)
+	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
