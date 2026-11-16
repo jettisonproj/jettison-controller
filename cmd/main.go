@@ -56,9 +56,14 @@ import (
 const (
 	podNamespaceEnvVar = "POD_NAMESPACE"
 	podNameEnvVar      = "POD_NAME"
+	podAppEnvVar       = "POD_APP"
 	podRoleEnvVar      = "POD_ROLE"
 	podRoleStable      = "stable"
+	podRoleCanary      = "canary"
 	stablePodDelay     = 15 * time.Second
+	leaderElectionID   = "3d4b3c11.jettisonproj.io"
+	appLabelKey        = "app"
+	roleLabelKey       = "role"
 )
 
 var (
@@ -110,12 +115,6 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	controllerPodRole := os.Getenv(podRoleEnvVar)
-	if controllerPodRole == podRoleStable {
-		setupLog.Info(fmt.Sprintf("detected role %s. Sleep to give other roles priority", controllerPodRole))
-		time.Sleep(stablePodDelay)
-	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -176,7 +175,7 @@ func main() {
 		WebhookServer:           webhookServer,
 		HealthProbeBindAddress:  probeAddr,
 		LeaderElection:          enableLeaderElection,
-		LeaderElectionID:        "3d4b3c11.jettisonproj.io",
+		LeaderElectionID:        leaderElectionID,
 		LeaderElectionNamespace: controllerPodNamespace,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
@@ -275,6 +274,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if enableLeaderElection {
+		err = handleLeaderElectionStartup(mgr.GetAPIReader(), controllerPodNamespace)
+		if err != nil {
+			setupLog.Error(err, "failed to handle leader election startup")
+			os.Exit(1)
+		}
+	}
+
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
@@ -282,4 +289,47 @@ func main() {
 	}
 
 	setupLog.Info("exiting immediately: the leader lease has been released")
+}
+
+// Currently, Coordinated Leader Election is not supported.
+// See: https://github.com/kubernetes-sigs/controller-runtime/issues/3309
+// As a workaround, attempt to prioritize controllers with the "canary"
+// role as leaders, so that it is tested before promoting further
+func handleLeaderElectionStartup(reader client.Reader, controllerPodNamespace string) error {
+	controllerPodRole := os.Getenv(podRoleEnvVar)
+	controllerPodApp := os.Getenv(podAppEnvVar)
+	setupLog.Info("detected app and role", "app", controllerPodApp, "role", controllerPodRole)
+
+	if controllerPodRole == podRoleStable {
+		canaryPods := &corev1.PodList{}
+		err := reader.List(
+			context.Background(),
+			canaryPods,
+			client.InNamespace(controllerPodNamespace),
+			client.MatchingLabels{appLabelKey: controllerPodApp, roleLabelKey: podRoleCanary},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to list canary pods: %s", err)
+		}
+
+		if areCanaryPodsRunning(canaryPods.Items) {
+			setupLog.Info("canary pods found. Sleep to give canary pods priority")
+			time.Sleep(stablePodDelay)
+			return nil
+		}
+
+		setupLog.Info("no canary pods found. Continuing...")
+		return nil
+	}
+
+	return nil
+}
+
+func areCanaryPodsRunning(canaryPods []corev1.Pod) bool {
+	for i := range canaryPods {
+		if canaryPods[i].DeletionTimestamp == nil {
+			return true
+		}
+	}
+	return false
 }

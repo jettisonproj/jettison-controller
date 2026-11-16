@@ -550,6 +550,7 @@ spec:
       labels:
         app: jettison-controller-manager
         jettison-app: jettison-controller-manager
+        role: stable
     spec:
       containers:
       - args:
@@ -568,6 +569,14 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        - name: POD_APP
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['app']
+        - name: POD_ROLE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['role']
         image: ghcr.io/jettisonproj/jettison-controller:latest
         livenessProbe:
           httpGet:
