@@ -1,15 +1,11 @@
 package workflowtemplates
 
 import (
-	"context"
-	"time"
-
 	workflows "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow"
 	workflowsv1 "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -753,30 +749,3 @@ var (
 		},
 	}
 )
-
-func SyncWorkflowTemplates(client ctrlclient.Client) {
-	for {
-		log.Info("syncing cluster workflow templates")
-		cicdTemplate := &workflowsv1.ClusterWorkflowTemplate{
-			TypeMeta:   CICDTemplate.TypeMeta,
-			ObjectMeta: CICDTemplate.ObjectMeta,
-		}
-
-		op, err := ctrl.CreateOrUpdate(
-			context.Background(),
-			client,
-			cicdTemplate,
-			func() error {
-				cicdTemplate.Spec = CICDTemplate.Spec
-				return nil
-			},
-		)
-		if err != nil {
-			log.Error(err, "unable to sync cluster workflow templates. Retrying...")
-			time.Sleep(5 * time.Second)
-			continue
-		}
-		log.Info("synced cluster workflow templates", "operation", op)
-		break
-	}
-}
