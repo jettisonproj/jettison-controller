@@ -83,7 +83,7 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	POD_NAMESPACE=jettisonproj POD_NAME=jettison-controller-tp go run ./cmd/main.go --leader-elect --health-probe-bind-address=:8081 -workflow-mysql-address "root:root@tcp(mysql.mysql:3306)/argo" -github-key tpmount/github-key/private-key.pem -argocd-key tpmount/argocd-jettisonproj-secret/password -server-bind-address :2847
+	POD_NAMESPACE=jettisonproj POD_NAME=jettison-controller-tp POD_APP=jettison-controller-manager POD_ROLE=tp go run ./cmd/main.go --leader-elect --health-probe-bind-address=:8081 -workflow-mysql-address "root:root@tcp(mysql.mysql:3306)/argo" -github-key tpmount/github-key/private-key.pem -argocd-key tpmount/argocd-jettisonproj-secret/password -server-bind-address :2847
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
