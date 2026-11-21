@@ -1,3 +1,10 @@
 # More info: https://docs.docker.com/engine/reference/builder/#dockerignore-file
-# Ignore build and test binaries.
-bin/
+# Allowlist: ignore everything, then include only what the Dockerfile needs.
+*
+!go.mod
+!go.sum
+!cmd/
+!api/
+!internal/
+!test/
+!testdata/
