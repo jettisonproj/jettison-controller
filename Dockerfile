@@ -5,9 +5,6 @@ ARG TARGETARCH
 
 WORKDIR /workspace
 
-# Download additional go linter
-RUN go install honnef.co/go/tools/cmd/staticcheck@latest
-
 # Copy the go source
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -23,24 +20,26 @@ COPY testdata/ testdata/
 # the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-  CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go && \
-  CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go test -c ./test/e2e
+  CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+  go build -trimpath -ldflags="-s -w" -o manager cmd/main.go && \
+  CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+  go test -c ./test/e2e
 
 # Unit Test
-FROM build as test-results
+FROM build AS test-results
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
   FORMAT_RESULT="$(gofmt -d -e -s api cmd internal test/e2e)" && \
   echo "${FORMAT_RESULT}" && \
   test -z "${FORMAT_RESULT}" && \
   go vet ./... && \
-  staticcheck ./... && \
+  go tool staticcheck ./... && \
   go fix -diff ./... && \
   go test $(go list ./... | grep -v /e2e) -coverprofile cover.out
 
 # Integration Test
 # Use distroless as minimal base image to package the integration test binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot as integration-test
+FROM gcr.io/distroless/static:nonroot AS integration-test
 WORKDIR /test/e2e
 COPY --from=build /workspace/e2e.test /test/e2e/e2e.test
 COPY testdata/ /testdata/
