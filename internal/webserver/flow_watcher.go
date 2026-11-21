@@ -273,9 +273,15 @@ func (s *FlowWatcher) readConn(conn *WebConn) {
 		messageType, message, err := conn.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-				conn.log.Error(err, "unexpected close error")
-				panic(err)
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseAbnormalClosure) {
+					conn.log.Error(err, "unexpected close error")
+					panic(err)
+				}
+
+				conn.log.Info("connection exited abnormally", "exitErr", err)
+				return
 			}
+
 			conn.log.Info("connection exited cleanly", "exitErr", err)
 			return
 		}
