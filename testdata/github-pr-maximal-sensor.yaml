@@ -137,9 +137,6 @@ spec:
                       - /artifacts
                       - --num-artifacts
                       - '{{inputs.parameters.num-artifacts}}'
-                      env:
-                      - name: "BUILDKITD_FLAGS"
-                        value: "--oci-worker-no-process-sandbox"
                       # Rootless BuildKit depends on the security context. See:
                       # https://github.com/moby/buildkit/blob/master/examples/kubernetes/job.rootless.yaml
                       securityContext:
@@ -153,11 +150,11 @@ spec:
                         runAsUser: 1000
                         runAsGroup: 1000
                       name: "main"
-                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:a951990bcd07043a7e40f8a5fb6dc7beec1ae9e7"
                       dependencies:
                       - docker-build-diff-check-pr
                       volumeMounts:
-                      - mountPath: /home/user/.local/share/buildkit
+                      - mountPath: /home/user/.local/share
                         name: buildkit-cache
                     volumeMounts:
                     - mountPath: /workspace
