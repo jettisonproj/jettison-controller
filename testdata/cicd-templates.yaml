@@ -79,7 +79,7 @@ spec:
       - name: main
         dependencies:
         - docker-build-diff-check-pr
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:a951990bcd07043a7e40f8a5fb6dc7beec1ae9e7"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:d184f52935a550d0d77702babad6b7e91b42f2b5"
         args:
         - pr
         - --clone-path
@@ -157,7 +157,7 @@ spec:
         - "/workspace/jettison-deploy-step-status.txt"
         - "/repo"
       - name: main
-        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:a951990bcd07043a7e40f8a5fb6dc7beec1ae9e7"
+        image: "ghcr.io/jettisonproj/deploy-steps/docker-build:d184f52935a550d0d77702babad6b7e91b42f2b5"
         dependencies:
         - docker-build-diff-check-commit
         args:
