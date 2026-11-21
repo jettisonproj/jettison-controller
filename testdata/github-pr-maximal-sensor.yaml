@@ -153,7 +153,7 @@ spec:
                         runAsUser: 1000
                         runAsGroup: 1000
                       name: "main"
-                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
+                      image: "ghcr.io/jettisonproj/deploy-steps/docker-build:a951990bcd07043a7e40f8a5fb6dc7beec1ae9e7"
                       dependencies:
                       - docker-build-diff-check-pr
                       volumeMounts:

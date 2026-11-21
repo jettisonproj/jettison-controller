@@ -24,7 +24,7 @@ const (
 	// Deploy Step Image for Docker Build Diff Check
 	deployStepsDockerBuildDiffCheckImage = "ghcr.io/jettisonproj/deploy-steps/docker-build-diff-check:ba8c89a72600d23e81065c8d215ff35524d9aae8"
 	// Deploy Step Image for Docker Build
-	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:6d13a90de9809f9a122324b7c0407ed33af920fa"
+	deployStepsDockerBuildImage = "ghcr.io/jettisonproj/deploy-steps/docker-build:a951990bcd07043a7e40f8a5fb6dc7beec1ae9e7"
 	// Deploy Step Image for GitHub PR Creation
 	deployStepsGitHubCreatePr = "ghcr.io/jettisonproj/deploy-steps/create-pr:636f1db062a7f8fd5b1a8d177a310e1412d525a8"
 )
