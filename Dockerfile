@@ -5,9 +5,6 @@ ARG TARGETARCH
 
 WORKDIR /workspace
 
-# Download additional go linter
-RUN go install honnef.co/go/tools/cmd/staticcheck@latest
-
 # Copy the go source
 COPY go.mod go.mod
 COPY go.sum go.sum
@@ -35,7 +32,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
   echo "${FORMAT_RESULT}" && \
   test -z "${FORMAT_RESULT}" && \
   go vet ./... && \
-  staticcheck ./... && \
+  go tool staticcheck ./... && \
   go fix -diff ./... && \
   go test $(go list ./... | grep -v /e2e) -coverprofile cover.out
 
